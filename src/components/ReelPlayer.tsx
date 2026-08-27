@@ -224,14 +224,14 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, duration,
     const width = rect.width;
     
     if (x < width * 0.35) {
-      // Clicked Left -> Rewind
-      video.currentTime = Math.max(0, video.currentTime - 10);
-      setSeekAnim('rewind');
-      setTimeout(() => setSeekAnim(null), 600);
-    } else if (x > width * 0.65) {
-      // Clicked Right -> Forward
+      // Clicked Left -> Forward (in Arabic RTL, Left is often next/forward)
       video.currentTime = Math.min(video.duration || 0, video.currentTime + 10);
       setSeekAnim('forward');
+      setTimeout(() => setSeekAnim(null), 600);
+    } else if (x > width * 0.65) {
+      // Clicked Right -> Rewind
+      video.currentTime = Math.max(0, video.currentTime - 10);
+      setSeekAnim('rewind');
       setTimeout(() => setSeekAnim(null), 600);
     } else {
       // Clicked Center -> Play/Pause
@@ -385,26 +385,26 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, duration,
 
       {/* Seek Animations (Rewind / Forward) */}
       <AnimatePresence>
-        {seekAnim === 'rewind' && (
+        {seekAnim === 'forward' && (
           <motion.div
             initial={{ opacity: 0, scale: 0.8, x: -20 }}
             animate={{ opacity: 1, scale: 1, x: 0 }}
             exit={{ opacity: 0, scale: 1.1 }}
             className="absolute left-[15%] top-1/2 -translate-y-1/2 flex flex-col items-center justify-center bg-black/40 backdrop-blur-md rounded-full w-24 h-24 pointer-events-none z-30"
           >
-            <RotateCcw size={36} className="text-white drop-shadow-md" />
-            <span className="text-[11px] font-bold text-white mt-1.5 drop-shadow-md">-10s</span>
+            <RotateCw size={36} className="text-white drop-shadow-md" />
+            <span className="text-[11px] font-bold text-white mt-1.5 drop-shadow-md">+10s</span>
           </motion.div>
         )}
-        {seekAnim === 'forward' && (
+        {seekAnim === 'rewind' && (
           <motion.div
             initial={{ opacity: 0, scale: 0.8, x: 20 }}
             animate={{ opacity: 1, scale: 1, x: 0 }}
             exit={{ opacity: 0, scale: 1.1 }}
             className="absolute right-[15%] top-1/2 -translate-y-1/2 flex flex-col items-center justify-center bg-black/40 backdrop-blur-md rounded-full w-24 h-24 pointer-events-none z-30"
           >
-            <RotateCw size={36} className="text-white drop-shadow-md" />
-            <span className="text-[11px] font-bold text-white mt-1.5 drop-shadow-md">+10s</span>
+            <RotateCcw size={36} className="text-white drop-shadow-md" />
+            <span className="text-[11px] font-bold text-white mt-1.5 drop-shadow-md">-10s</span>
           </motion.div>
         )}
       </AnimatePresence>
