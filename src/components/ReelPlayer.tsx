@@ -7,12 +7,13 @@ import { parseVideoUrl } from '../utils/videoUtils';
 interface ReelPlayerProps {
   url: string;
   isActive: boolean;
+  shouldLoad?: boolean; // whether to load the video source (for lazy loading)
   duration?: number; // duration in seconds set by admin
   onProgress?: (time: number) => void;
   onComplete?: () => void;
 }
 
-export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, duration, onProgress, onComplete }) => {
+export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, shouldLoad = true, duration, onProgress, onComplete }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const isActiveRef = useRef(isActive);
   const onCompleteCalledRef = useRef(false);
@@ -65,7 +66,7 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, duration,
   }, [isActive]);
 
   useEffect(() => {
-    if (parsed.embedUrl || !parsed.originalUrl) return;
+    if (parsed.embedUrl || !parsed.originalUrl || !shouldLoad) return;
 
     let hls: Hls | null = null;
     const video = videoRef.current;
@@ -95,6 +96,8 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, duration,
         video.addEventListener('loadedmetadata', handleMetadata);
         return () => {
           video.removeEventListener('loadedmetadata', handleMetadata);
+          video.removeAttribute('src');
+          video.load();
         };
       }
     } else {
@@ -106,6 +109,8 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, duration,
       video.addEventListener('loadedmetadata', handleMetadata);
       return () => {
         video.removeEventListener('loadedmetadata', handleMetadata);
+        video.removeAttribute('src');
+        video.load();
       };
     }
 
@@ -113,8 +118,10 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, duration,
       if (hls) {
         hls.destroy();
       }
+      video.removeAttribute('src');
+      video.load();
     };
-  }, [parsed.originalUrl, parsed.type]);
+  }, [parsed.originalUrl, parsed.type, shouldLoad]);
 
   // Master Playback Trigger based on isActive and isReady
   useEffect(() => {
@@ -223,19 +230,39 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, duration,
     const x = e.clientX - rect.left;
     const width = rect.width;
     
-    if (x < width * 0.35) {
-      // Clicked Left -> Forward (in Arabic RTL, Left is often next/forward)
-      video.currentTime = Math.min(video.duration || 0, video.currentTime + 10);
-      setSeekAnim('forward');
-      setTimeout(() => setSeekAnim(null), 600);
-    } else if (x > width * 0.65) {
-      // Clicked Right -> Rewind
-      video.currentTime = Math.max(0, video.currentTime - 10);
-      setSeekAnim('rewind');
-      setTimeout(() => setSeekAnim(null), 600);
+    let side: 'left' | 'right' | 'center' = 'center';
+    if (x < width * 0.35) side = 'left';
+    else if (x > width * 0.65) side = 'right';
+
+    const now = Date.now();
+    const timeSinceLastTap = now - lastTapRef.current.time;
+    const isDoubleTap = timeSinceLastTap < 300 && lastTapRef.current.side === side;
+
+    if (tapTimeoutRef.current) {
+      clearTimeout(tapTimeoutRef.current);
+      tapTimeoutRef.current = null;
+    }
+
+    if (isDoubleTap && side !== 'center') {
+      if (side === 'left') {
+        // Double Clicked Left -> Forward
+        video.currentTime = Math.min(video.duration || 0, video.currentTime + 10);
+        setSeekAnim('forward');
+        setTimeout(() => setSeekAnim(null), 600);
+      } else if (side === 'right') {
+        // Double Clicked Right -> Rewind
+        video.currentTime = Math.max(0, video.currentTime - 10);
+        setSeekAnim('rewind');
+        setTimeout(() => setSeekAnim(null), 600);
+      }
+      lastTapRef.current = { time: 0, side: 'center' };
     } else {
-      // Clicked Center -> Play/Pause
-      togglePlay();
+      lastTapRef.current = { time: now, side };
+      tapTimeoutRef.current = setTimeout(() => {
+        // Single tap anywhere -> Play/Pause
+        togglePlay();
+        tapTimeoutRef.current = null;
+      }, 300);
     }
   };
 
@@ -326,6 +353,7 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, duration,
       <video
         ref={videoRef}
         className="w-full h-full object-cover"
+        muted={isMuted}
         onTimeUpdate={handleTimeUpdate}
         onWaiting={() => setIsBuffering(true)}
         onStalled={() => setIsBuffering(true)}

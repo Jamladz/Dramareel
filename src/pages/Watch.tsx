@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Heart, Share2, MessageCircle, Bookmark, Layers, Gift, Plus, Zap, Sparkles, Crown, Tv } from 'lucide-react';
+import { ArrowLeft, Heart, Share2, MessageCircle, Bookmark, Layers, Gift, Plus, Zap, Sparkles, Crown, Tv, Loader2 } from 'lucide-react';
 import { AnimatedViews } from '../components/AnimatedViews';
 import { useAppStore } from '../store';
 import { ReelPlayer } from '../components/ReelPlayer';
@@ -138,6 +138,7 @@ export const Watch = () => {
   }, [movie]);
 
   const [activeEpisodeId, setActiveEpisodeId] = useState<string>('');
+  const [autoPlayingNext, setAutoPlayingNext] = useState<{ id: string; nextEpNum: number } | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -296,6 +297,8 @@ export const Watch = () => {
         {episodes.map((ep, idx) => {
           const isLocked = !isPaidVip() && !isPointsVip() && ep.episodeNumber > 6 && !unlockedEpisodes.includes(ep.id);
           const isCurrentActive = activeEpisodeId === ep.id;
+          const activeIndex = episodes.findIndex(e => e.id === activeEpisodeId);
+          const isNearActive = Math.abs(idx - activeIndex) <= 1;
 
           return (
             <div 
@@ -339,6 +342,7 @@ export const Watch = () => {
                 <ReelPlayer 
                   url={ep.videoUrl} 
                   isActive={isCurrentActive}
+                  shouldLoad={isNearActive}
                   duration={ep.duration}
                   onComplete={() => {
                     useAppStore.getState().completeEpisode(ep.id);
@@ -358,13 +362,32 @@ export const Watch = () => {
                       if (nextLocked) {
                         setShowUnlockModal(nextEp.id);
                       } else {
+                        setAutoPlayingNext({ id: ep.id, nextEpNum: nextEp.episodeNumber });
                         setTimeout(() => {
                           scrollToEpisode(nextEp.id);
-                        }, 300);
+                          setTimeout(() => setAutoPlayingNext(null), 500);
+                        }, 2500);
                       }
                     }
                   }}
                 />
+              )}
+
+              {/* Auto Play Next Overlay */}
+              {autoPlayingNext?.id === ep.id && (
+                <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
+                  <div className="w-20 h-20 bg-black/50 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(220,38,38,0.3)] border border-white/10">
+                    <Loader2 size={40} className="animate-spin text-red-600" />
+                  </div>
+                  <h3 className="text-2xl font-black text-white drop-shadow-lg mb-2">
+                    {isArabic ? 'الحلقة القادمة...' : 'Up Next...'}
+                  </h3>
+                  <div className="bg-red-600/20 border border-red-600/50 px-5 py-1.5 rounded-full backdrop-blur-md">
+                    <p className="text-red-400 font-bold text-sm">
+                      {isArabic ? `تشغيل حلقة ${autoPlayingNext.nextEpNum}` : `Playing Episode ${autoPlayingNext.nextEpNum}`}
+                    </p>
+                  </div>
+                </div>
               )}
 
               {/* Right Side Action Buttons */}
