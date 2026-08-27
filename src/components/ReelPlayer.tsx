@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Hls from 'hls.js';
-import { Play, Pause, Volume2, VolumeX, Loader2, WifiOff } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Play, Pause, Volume2, VolumeX, Loader2, WifiOff, RotateCcw, RotateCw } from 'lucide-react';
 import { parseVideoUrl } from '../utils/videoUtils';
 
 interface ReelPlayerProps {
@@ -25,6 +26,9 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, duration,
   const [iframeState, setIframeState] = useState<'playing' | 'buffering' | 'paused'>('playing');
   const [watchedSeconds, setWatchedSeconds] = useState(0);
   const [showControlIcon, setShowControlIcon] = useState<'play' | 'pause' | null>(null);
+  const [seekAnim, setSeekAnim] = useState<'forward' | 'rewind' | null>(null);
+  const tapTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastTapRef = useRef<{ time: number, side: 'left' | 'right' | 'center' }>({ time: 0, side: 'center' });
 
   const parsed = parseVideoUrl(url, isActive);
 
@@ -211,6 +215,30 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, duration,
     }, 600);
   };
 
+  const handleInteraction = (e: React.MouseEvent) => {
+    const video = videoRef.current;
+    if (!video) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const width = rect.width;
+    
+    if (x < width * 0.35) {
+      // Clicked Left -> Rewind
+      video.currentTime = Math.max(0, video.currentTime - 10);
+      setSeekAnim('rewind');
+      setTimeout(() => setSeekAnim(null), 600);
+    } else if (x > width * 0.65) {
+      // Clicked Right -> Forward
+      video.currentTime = Math.min(video.duration || 0, video.currentTime + 10);
+      setSeekAnim('forward');
+      setTimeout(() => setSeekAnim(null), 600);
+    } else {
+      // Clicked Center -> Play/Pause
+      togglePlay();
+    }
+  };
+
   const toggleMute = (e: React.MouseEvent) => {
     e.stopPropagation();
     const video = videoRef.current;
@@ -294,7 +322,7 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, duration,
   const isHtml5Buffering = !isOnline || isBuffering;
 
   return (
-    <div className="relative w-full h-full bg-black flex items-center justify-center cursor-pointer select-none overflow-hidden" onClick={togglePlay}>
+    <div className="relative w-full h-full bg-black flex items-center justify-center cursor-pointer select-none overflow-hidden" onClick={handleInteraction}>
       <video
         ref={videoRef}
         className="w-full h-full object-cover"
@@ -354,6 +382,32 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, duration,
           </button>
         </div>
       )}
+
+      {/* Seek Animations (Rewind / Forward) */}
+      <AnimatePresence>
+        {seekAnim === 'rewind' && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8, x: -20 }}
+            animate={{ opacity: 1, scale: 1, x: 0 }}
+            exit={{ opacity: 0, scale: 1.1 }}
+            className="absolute left-[15%] top-1/2 -translate-y-1/2 flex flex-col items-center justify-center bg-black/40 backdrop-blur-md rounded-full w-24 h-24 pointer-events-none z-30"
+          >
+            <RotateCcw size={36} className="text-white drop-shadow-md" />
+            <span className="text-[11px] font-bold text-white mt-1.5 drop-shadow-md">-10s</span>
+          </motion.div>
+        )}
+        {seekAnim === 'forward' && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.8, x: 20 }}
+            animate={{ opacity: 1, scale: 1, x: 0 }}
+            exit={{ opacity: 0, scale: 1.1 }}
+            className="absolute right-[15%] top-1/2 -translate-y-1/2 flex flex-col items-center justify-center bg-black/40 backdrop-blur-md rounded-full w-24 h-24 pointer-events-none z-30"
+          >
+            <RotateCw size={36} className="text-white drop-shadow-md" />
+            <span className="text-[11px] font-bold text-white mt-1.5 drop-shadow-md">+10s</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Bottom Progress Bar */}
       {isActive && (
