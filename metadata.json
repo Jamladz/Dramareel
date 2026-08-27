@@ -1,0 +1,6 @@
+{
+  "name": "Drama Reel",
+  "description": "Professional Telegram Mini App for watching movies and short dramas.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

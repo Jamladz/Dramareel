@@ -1,0 +1,92 @@
+{
+  "entities": {
+    "Episode": {
+      "title": "Episode",
+      "description": "An episode of a movie",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "episodeNumber": { "type": "number" },
+        "title": { "type": "string", "maxLength": 200 },
+        "videoUrl": { "type": "string", "maxLength": 500 }
+      },
+      "required": ["id", "episodeNumber", "title", "videoUrl"]
+    },
+    "Movie": {
+      "title": "Movie",
+      "description": "A movie",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "title": { "type": "string", "maxLength": 200 },
+        "description": { "type": "string", "maxLength": 2000 },
+        "coverImage": { "type": "string", "maxLength": 500 },
+        "largeImage": { "type": "string", "maxLength": 500 },
+        "trailerUrl": { "type": "string", "maxLength": 500 },
+        "videoUrl": { "type": "string", "maxLength": 500 },
+        "episodes": {
+          "type": "array",
+          "items": { "$ref": "#/entities/Episode" }
+        },
+        "releaseYear": { "type": "number" },
+        "duration": { "type": "number" },
+        "episodesCount": { "type": "number" },
+        "rating": { "type": "number" },
+        "views": { "type": "number" },
+        "category": { "type": "string", "maxLength": 100 },
+        "director": { "type": "string", "maxLength": 100 },
+        "cast": { "type": "array", "items": { "type": "string", "maxLength": 100 } },
+        "country": { "type": "string", "maxLength": 100 },
+        "language": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "title"]
+    },
+    "User": {
+      "title": "User",
+      "description": "User profile and referral stats",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "telegramId": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 200 },
+        "username": { "type": "string", "maxLength": 100 },
+        "coins": { "type": "number" },
+        "referredBy": { "type": "string", "maxLength": 128 },
+        "referralsCount": { "type": "number" },
+        "earnedReferralCoins": { "type": "number" },
+        "claimedMilestones": { "type": "array", "items": { "type": "string", "maxLength": 50 } },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id"]
+    },
+    "Referral": {
+      "title": "Referral",
+      "description": "Log of referrals between users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "referrerId": { "type": "string", "maxLength": 128 },
+        "referredId": { "type": "string", "maxLength": 128 },
+        "referredName": { "type": "string", "maxLength": 200 },
+        "rewardCoins": { "type": "number" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "referrerId", "referredId"]
+    }
+  },
+  "firestore": {
+    "movies/{movieId}": {
+      "schema": "#/entities/Movie",
+      "description": "Stores movies"
+    },
+    "users/{userId}": {
+      "schema": "#/entities/User",
+      "description": "Stores user profile and referral data"
+    },
+    "referrals/{referralId}": {
+      "schema": "#/entities/Referral",
+      "description": "Stores referral records"
+    }
+  }
+}

@@ -1,0 +1,65 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+}
+
+html, body {
+  background-color: #050505;
+  color: #E0E0E0;
+  -webkit-tap-highlight-color: transparent;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  margin: 0;
+  padding: 0;
+  overscroll-behavior-y: none;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+* {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Safe area inset helpers */
+:root {
+  --sat: env(safe-area-inset-top, 0px);
+  --sab: env(safe-area-inset-bottom, 0px);
+}
+
+/* TonConnect UI Modal Overrides - Ensure modal appears above app modals */
+#tc-widget-root,
+tc-root,
+.tc-root,
+div[id*="tc-"],
+div[class*="tc-modal"],
+div[class*="tc-popup"],
+div[data-tc-modal="true"] {
+  z-index: 999999 !important;
+  position: relative !important;
+}
+
+.tc-wallet-item,
+.ton-connect-btn-wrapper button,
+tc-root button {
+  cursor: pointer !important;
+  pointer-events: auto !important;
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+/* Hide scrollbar for IE, Edge and Firefox */
+.hide-scrollbar {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
