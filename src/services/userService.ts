@@ -64,12 +64,15 @@ export async function completeTelegramTask(userId: string, taskId: string, rewar
     const userRef = doc(db, 'users', userId);
 
     const result = await runTransaction(db, async (transaction) => {
+      // 1. ALL READS FIRST
       const taskSnap = await transaction.get(taskRef);
-      
       if (taskSnap.exists() && taskSnap.data().completed) {
         throw new Error('Task already completed');
       }
 
+      const userSnap = await transaction.get(userRef);
+
+      // 2. ALL WRITES SECOND
       transaction.set(taskRef, {
         user_id: userId,
         task_id: taskId,
@@ -79,7 +82,6 @@ export async function completeTelegramTask(userId: string, taskId: string, rewar
         completed_at: Date.now()
       });
 
-      const userSnap = await transaction.get(userRef);
       if (userSnap.exists()) {
         const currentCoins = userSnap.data().coins || 0;
         transaction.update(userRef, { coins: currentCoins + reward });
