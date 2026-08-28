@@ -1,4 +1,4 @@
-import { collection, getDocs, query, where, orderBy, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, doc, getDoc, setDoc, updateDoc, runTransaction } from 'firebase/firestore';
 import { db } from '../firebase';
 
 export async function getTelegramUsers() {
@@ -41,5 +41,56 @@ export async function syncCoinsToFirebase(userId: string, coins: number, name?: 
     }
   } catch (error) {
     console.error('Error syncing coins to firebase:', error);
+  }
+}
+
+export async function getTaskStatus(userId: string, taskId: string): Promise<boolean> {
+  try {
+    if (!userId || !taskId) return false;
+    const taskRef = doc(db, 'user_tasks', `${userId}_${taskId}`);
+    const snap = await getDoc(taskRef);
+    return snap.exists() && snap.data().completed === true;
+  } catch (error) {
+    console.error('Error getting task status:', error);
+    return false;
+  }
+}
+
+export async function completeTelegramTask(userId: string, taskId: string, reward: number): Promise<{ success: boolean; error?: string }> {
+  try {
+    if (!userId || !taskId) return { success: false, error: 'Invalid data' };
+
+    const taskRef = doc(db, 'user_tasks', `${userId}_${taskId}`);
+    const userRef = doc(db, 'users', userId);
+
+    const result = await runTransaction(db, async (transaction) => {
+      const taskSnap = await transaction.get(taskRef);
+      
+      if (taskSnap.exists() && taskSnap.data().completed) {
+        throw new Error('Task already completed');
+      }
+
+      transaction.set(taskRef, {
+        user_id: userId,
+        task_id: taskId,
+        task_type: 'telegram_home_screen',
+        reward: reward,
+        completed: true,
+        completed_at: Date.now()
+      });
+
+      const userSnap = await transaction.get(userRef);
+      if (userSnap.exists()) {
+        const currentCoins = userSnap.data().coins || 0;
+        transaction.update(userRef, { coins: currentCoins + reward });
+      }
+
+      return true;
+    });
+
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error completing task:', error);
+    return { success: false, error: error.message };
   }
 }

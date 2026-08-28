@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
-import { X, Crown, Sparkles, Coins, CheckCircle2, Zap, Gift, ArrowRight, Users, Tv, CalendarCheck } from 'lucide-react';
+import { X, Crown, Sparkles, Coins, CheckCircle2, Zap, Gift, ArrowRight, Users, Tv, CalendarCheck, Smartphone, Plus } from 'lucide-react';
 import { useAppStore } from '../store';
 import { ReferralHub } from './ReferralHub';
 import { showAdsgramAd, ADSGRAM_BLOCKS } from '../services/adsgramService';
+import { getCurrentUserId } from '../services/referralService';
+import { getTaskStatus, completeTelegramTask } from '../services/userService';
 
 interface PointsStoreModalProps {
   isOpen: boolean;
@@ -68,6 +70,72 @@ export const PointsStoreModal: React.FC<PointsStoreModalProps> = ({ isOpen, onCl
   const [msg, setMsg] = useState<{ text: string; success: boolean } | null>(null);
   const [showReferralHub, setShowReferralHub] = useState(false);
   const [isAdLoading, setIsAdLoading] = useState(false);
+  
+  const [homeScreenStatus, setHomeScreenStatus] = useState<'loading' | 'available' | 'completed' | 'unsupported'>('loading');
+  const [addingToHome, setAddingToHome] = useState(false);
+
+  React.useEffect(() => {
+    if (!isOpen) return;
+    
+    const checkHomeTask = async () => {
+      const tg = (window as any).Telegram?.WebApp;
+      if (!tg || !tg.addToHomeScreen || !tg.checkHomeScreenStatus) {
+        setHomeScreenStatus('unsupported');
+        return;
+      }
+      
+      const userId = getCurrentUserId();
+      const isCompleted = await getTaskStatus(userId, 'add_to_home_screen');
+      if (isCompleted) {
+        setHomeScreenStatus('completed');
+      } else {
+        setHomeScreenStatus('available');
+      }
+    };
+
+    checkHomeTask();
+  }, [isOpen]);
+
+  const handleAddToHomeScreen = async () => {
+    const tg = (window as any).Telegram?.WebApp;
+    if (!tg || !tg.addToHomeScreen || !tg.checkHomeScreenStatus) {
+      setMsg({ text: isArabic ? 'هذه الميزة غير مدعومة في إصدار تيليجرام الخاص بك' : 'Unsupported Telegram version', success: false });
+      return;
+    }
+
+    setAddingToHome(true);
+    
+    try {
+      tg.addToHomeScreen();
+      
+      // Wait for a little bit before checking status to give time for the prompt
+      setTimeout(() => {
+        tg.checkHomeScreenStatus(async (status: string) => {
+          if (status === 'added') {
+            const userId = getCurrentUserId();
+            const res = await completeTelegramTask(userId, 'add_to_home_screen', 200);
+            if (res.success) {
+              // Update local state
+              useAppStore.getState().addCoins(200, 'إضافة التطبيق للشاشة الرئيسية');
+              setHomeScreenStatus('completed');
+              setMsg({ text: isArabic ? '🎉 تم إكمال المهمة! حصلت على +200 نقطة' : '🎉 Task completed! Earned +200 pts', success: true });
+            } else {
+              setMsg({ text: isArabic ? 'حدث خطأ أثناء حفظ المهمة' : 'Error saving task', success: false });
+            }
+          } else if (status === 'unknown') {
+             setMsg({ text: isArabic ? 'لم نتمكن من التحقق من الحالة' : 'Status check unknown', success: false });
+          } else {
+             setMsg({ text: isArabic ? 'لم يتم إضافة الاختصار بعد' : 'Shortcut not added yet', success: false });
+          }
+          setAddingToHome(false);
+        });
+      }, 5000); // 5 seconds wait for user to accept prompt
+
+    } catch (error) {
+      setMsg({ text: 'Error interacting with Telegram API', success: false });
+      setAddingToHome(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -270,6 +338,50 @@ export const PointsStoreModal: React.FC<PointsStoreModalProps> = ({ isOpen, onCl
                 </span>
               </button>
             </div>
+
+            {/* Telegram Home Screen Task */}
+            {homeScreenStatus !== 'unsupported' && (
+              <div className="mt-3 bg-gradient-to-r from-blue-950/40 to-[#1A1815] border border-blue-500/30 rounded-2xl p-4 flex items-center justify-between gap-3 relative overflow-hidden">
+                <div className="flex items-center gap-3 relative z-10">
+                  <div className="w-10 h-10 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center">
+                    <Smartphone size={24} />
+                  </div>
+                  <div>
+                    <h4 className="text-[13px] font-black text-white">
+                      {isArabic ? 'أضف التطبيق للشاشة الرئيسية' : 'Add to Home Screen'}
+                    </h4>
+                    <p className="text-[10px] text-blue-200/70 font-medium leading-tight max-w-[180px]">
+                      {isArabic 
+                        ? 'أضف اختصار التطبيق إلى شاشة هاتفك للوصول السريع' 
+                        : 'Add shortcut to your phone for quick access'}
+                    </p>
+                  </div>
+                </div>
+                <div className="relative z-10 flex flex-col items-end gap-2 shrink-0">
+                  <div className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-2 py-1 rounded-md">
+                    +200 {isArabic ? 'نقطة' : 'pts'}
+                  </div>
+                  {homeScreenStatus === 'completed' ? (
+                    <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/20 px-2 py-1 rounded-md flex items-center gap-1">
+                      <CheckCircle2 size={12} /> {isArabic ? 'مكتملة' : 'Completed'}
+                    </span>
+                  ) : (
+                    <button 
+                      onClick={handleAddToHomeScreen}
+                      disabled={addingToHome || homeScreenStatus === 'loading'}
+                      className="bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-black px-3 py-1.5 rounded-xl transition-all disabled:opacity-50 active:scale-95 flex items-center gap-1"
+                    >
+                      {addingToHome ? (isArabic ? 'جارِ التحقق...' : 'Checking...') : (
+                        <>
+                          <Plus size={12} />
+                          {isArabic ? 'إضافة الاختصار' : 'Add Shortcut'}
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Current VIP Status Notification if active */}
