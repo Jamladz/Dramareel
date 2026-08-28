@@ -83,6 +83,12 @@ export async function completeTelegramTask(userId: string, taskId: string, rewar
       if (userSnap.exists()) {
         const currentCoins = userSnap.data().coins || 0;
         transaction.update(userRef, { coins: currentCoins + reward });
+      } else {
+        transaction.set(userRef, {
+          id: userId,
+          coins: reward,
+          createdAt: Date.now()
+        }, { merge: true });
       }
 
       return true;
