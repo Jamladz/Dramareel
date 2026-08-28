@@ -9,6 +9,7 @@ import { useAppStore } from './store';
 
 // Components
 import { BottomNav } from './components/BottomNav';
+import { HomeScreenTaskModal } from './components/HomeScreenTaskModal';
 
 // Pages
 import { Home } from './pages/Home';
@@ -165,6 +166,8 @@ export default function App() {
           </button>
         </div>
       )}
+
+      <HomeScreenTaskModal />
     </Router>
   );
 }
