@@ -1,4 +1,4 @@
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, where, orderBy, doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
 
 export async function getTelegramUsers() {
@@ -21,8 +21,6 @@ export async function getTelegramUsers() {
     return [];
   }
 }
-
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 
 export async function syncCoinsToFirebase(userId: string, coins: number, name?: string) {
   try {
