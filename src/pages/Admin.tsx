@@ -7,6 +7,7 @@ import { Movie, Episode } from '../types';
 import { useAppStore } from '../store';
 import { parseVideoUrl, cleanVideoUrlInput } from '../utils/videoUtils';
 import { VideoPlayer } from '../components/VideoPlayer';
+import { getTelegramUsers } from '../services/userService';
 
 export const Admin = () => {
   const navigate = useNavigate();
@@ -14,6 +15,7 @@ export const Admin = () => {
   const { movies, setMovies } = useAppStore();
   const [loading, setLoading] = useState(false);
   const [expandedMovieId, setExpandedMovieId] = useState<string | null>(null);
+  const [tgUsers, setTgUsers] = useState<any[]>([]);
 
   // Forms states
   const [showAddMovie, setShowAddMovie] = useState(false);
@@ -55,8 +57,18 @@ export const Admin = () => {
 
     if (checkAuth()) {
       loadMovies();
+      loadTgUsers();
     }
   }, [navigate]);
+
+  const loadTgUsers = async () => {
+    try {
+      const users = await getTelegramUsers();
+      setTgUsers(users);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const loadMovies = async () => {
     setLoading(true);
@@ -437,6 +449,42 @@ export const Admin = () => {
               </div>
             ))
           )}
+        </div>
+
+        {/* Telegram Users Section */}
+        <div className="mt-8 pt-8 border-t border-white/10">
+          <h2 className="text-xl font-black uppercase tracking-widest mb-6 flex items-center gap-2">
+            <span className="text-blue-500">✈️</span> مستخدمو تيليجرام
+          </h2>
+          <div className="bg-[#111111] rounded-2xl border border-white/5 overflow-hidden">
+            {tgUsers.length > 0 ? (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm text-white/80">
+                  <thead className="bg-[#1A1A1A] text-white/50 text-xs uppercase font-bold">
+                    <tr>
+                      <th className="px-4 py-3 text-right">المستخدم</th>
+                      <th className="px-4 py-3 text-right">النقاط</th>
+                      <th className="px-4 py-3 text-right">الدعوات</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-white/5">
+                    {tgUsers.map(user => (
+                      <tr key={user.id} className="hover:bg-white/5 transition-colors">
+                        <td className="px-4 py-3 font-bold text-right flex items-center gap-3">
+                          <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`} className="w-8 h-8 rounded-full bg-white/10" alt="avatar" />
+                          {user.name}
+                        </td>
+                        <td className="px-4 py-3 text-amber-400 font-bold text-right">{user.coins || 0}</td>
+                        <td className="px-4 py-3 text-white/60 font-bold text-right">{user.referralsCount || 0}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="text-center text-white/40 p-6 text-sm font-bold">لا يوجد مستخدمين من تيليجرام بعد.</p>
+            )}
+          </div>
         </div>
       </div>
 

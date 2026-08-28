@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { signInAnonymously } from 'firebase/auth';
 import { auth } from './firebase';
 import { processReferral, getCurrentUserId, getTelegramUser } from './services/referralService';
+import { syncCoinsToFirebase } from './services/userService';
 import { useAppStore } from './store';
 
 // Components
@@ -56,7 +57,17 @@ const AnimatedRoutes = () => {
 export default function App() {
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [referralBonusToast, setReferralBonusToast] = useState<number | null>(null);
+  const [userId, setUserId] = useState<string | null>(null);
   const addCoins = useAppStore(s => s.addCoins);
+  const coins = useAppStore(s => s.coins);
+
+  useEffect(() => {
+    if (userId) {
+      const tgUser = getTelegramUser();
+      const userName = tgUser?.first_name || 'مستخدم';
+      syncCoinsToFirebase(userId, coins, userName);
+    }
+  }, [coins, userId]);
 
   useEffect(() => {
     // Disable copy on non-input elements
@@ -100,6 +111,7 @@ export default function App() {
       if (user) {
         // Process potential referral deep link
         const currentId = getCurrentUserId(user.uid);
+        setUserId(currentId);
         const tgUser = getTelegramUser();
         const userName = tgUser?.first_name || 'Friend';
 
