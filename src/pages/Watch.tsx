@@ -256,13 +256,6 @@ export const Watch = () => {
       }`}>
         <div className="flex items-center gap-1.5 pointer-events-auto min-w-0 shrink">
           <button 
-            onClick={() => navigate(-1)} 
-            className="w-8 h-8 sm:w-10 sm:h-10 bg-black/50 hover:bg-black/80 rounded-full flex items-center justify-center text-white shadow-lg border border-white/10 active:scale-95 transition-transform shrink-0"
-          >
-            <ArrowLeft size={18} className={isArabic ? 'rotate-180' : ''} />
-          </button>
-          
-          <button 
             onClick={() => setShowEpisodeDrawer(true)}
             className="flex items-center gap-1.5 px-2.5 py-1 bg-black/50 hover:bg-black/80 rounded-full text-white font-bold text-[11px] sm:text-xs border border-white/15 backdrop-blur-md active:scale-95 transition-transform shrink-0"
           >
@@ -394,6 +387,16 @@ export const Watch = () => {
               <div className={`absolute right-3.5 bottom-20 flex flex-col items-center gap-4 z-20 transition-all duration-500 ${
                 areControlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
               }`}>
+                {/* Exit Button */}
+                <button 
+                  onClick={() => navigate(-1)}
+                  className="flex flex-col items-center gap-1 group mb-2"
+                >
+                  <div className="w-10 h-10 bg-black/50 backdrop-blur-xl rounded-full flex items-center justify-center text-white/90 border border-white/15 shadow-[0_4px_15px_rgba(0,0,0,0.5)] group-active:scale-90 transition-all hover:bg-black/70 hover:text-white hover:border-white/30">
+                    <ArrowLeft size={20} className={isArabic ? 'rotate-180' : ''} />
+                  </div>
+                </button>
+
                 {/* Series Avatar with Follow Badge */}
                 <div className="relative mb-1 group cursor-pointer" onClick={() => setShowEpisodeDrawer(true)}>
                   <div className="w-12 h-12 rounded-full p-[2px] bg-gradient-to-tr from-red-600 via-orange-500 to-amber-400 shadow-xl shadow-red-600/20 group-active:scale-95 transition-transform">
