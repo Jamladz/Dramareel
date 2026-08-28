@@ -34,7 +34,16 @@ const AnimatedRoutes = () => {
   const showNav = !location.pathname.includes('/watch/') && !location.pathname.includes('/movie/') && !location.pathname.includes('/admin');
 
   return (
-    <div className="bg-[#050505] h-screen w-screen overflow-hidden text-[#E0E0E0] font-sans selection:bg-red-500/30 relative flex flex-col">
+    <div 
+      className="bg-[#050505] w-screen overflow-hidden text-[#E0E0E0] font-sans selection:bg-red-500/30 relative flex flex-col"
+      style={{
+        height: 'var(--tg-viewport-stable-height, 100vh)',
+        paddingTop: 'var(--tg-safe-area-inset-top, env(safe-area-inset-top))',
+        paddingBottom: 'var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom))',
+        paddingLeft: 'var(--tg-safe-area-inset-left, env(safe-area-inset-left))',
+        paddingRight: 'var(--tg-safe-area-inset-right, env(safe-area-inset-right))',
+      }}
+    >
       <div className="flex-1 w-full min-h-0 overflow-hidden relative">
         <Routes location={location}>
           <Route path="/" element={<Home />} />
@@ -87,7 +96,17 @@ export default function App() {
     // Telegram Web App configurations
     if ((window as any).Telegram?.WebApp) {
       const tg = (window as any).Telegram.WebApp;
+      tg.ready();
       tg.expand();
+      
+      if (typeof tg.requestFullscreen === 'function') {
+        try {
+          tg.requestFullscreen();
+        } catch (e) {
+          console.error("Telegram requestFullscreen error:", e);
+        }
+      }
+
       try {
         if (tg.setHeaderColor) tg.setHeaderColor('#050505');
         if (tg.setBackgroundColor) tg.setBackgroundColor('#050505');
