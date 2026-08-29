@@ -38,7 +38,7 @@ const AnimatedRoutes = () => {
       className="bg-[#050505] w-screen overflow-hidden text-[#E0E0E0] font-sans selection:bg-red-500/30 relative flex flex-col"
       style={{
         height: 'var(--tg-viewport-stable-height, 100vh)',
-        paddingTop: 'var(--tg-safe-area-inset-top, env(safe-area-inset-top))',
+        paddingTop: 'calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)) + 28px)',
         paddingBottom: 'var(--tg-safe-area-inset-bottom, env(safe-area-inset-bottom))',
         paddingLeft: 'var(--tg-safe-area-inset-left, env(safe-area-inset-left))',
         paddingRight: 'var(--tg-safe-area-inset-right, env(safe-area-inset-right))',

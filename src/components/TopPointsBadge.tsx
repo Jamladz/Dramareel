@@ -108,7 +108,7 @@ export const TopPointsBadge: React.FC<TopPointsBadgeProps> = ({ className = '', 
         whileTap={{ scale: 0.94 }}
         whileHover={{ scale: 1.02 }}
         onClick={() => setShowPointsModal(true)}
-        className={`group relative flex items-center gap-1.5 bg-gradient-to-r from-[#1A1714] via-[#241F18] to-[#1A1714] hover:from-[#241F18] hover:to-[#1F1A14] border border-amber-500/30 hover:border-amber-400/70 px-2.5 py-1 rounded-xl shadow-[0_2px_10px_rgba(245,158,11,0.12)] transition-all shrink-0 select-none ${className}`}
+        className={`group relative flex items-center gap-1.5 bg-gradient-to-r from-[#1A1714] via-[#241F18] to-[#1A1714] hover:from-[#241F18] hover:to-[#1F1A14] border border-amber-500/30 hover:border-amber-400/70 h-8 sm:h-9 px-2.5 rounded-xl shadow-[0_2px_10px_rgba(245,158,11,0.12)] transition-all shrink-0 select-none ${className}`}
         title={isArabic ? 'رصيد نقاطك الشامل - اضغط للاستبدال أو كسب المزيد' : 'Total Points - Tap to redeem or earn'}
       >
         {/* Glowing Coin Icon */}

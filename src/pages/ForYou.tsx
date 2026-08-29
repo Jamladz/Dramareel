@@ -91,9 +91,9 @@ export const ForYou = () => {
     let feed: { movie: Movie, episode: any }[] = [];
     movies.forEach(movie => {
       if (movie.episodes && movie.episodes.length > 0) {
-        movie.episodes.forEach(ep => {
-          feed.push({ movie, episode: ep });
-        });
+        // Only include the first episode in the For You feed
+        const firstEp = [...movie.episodes].sort((a, b) => a.episodeNumber - b.episodeNumber)[0];
+        feed.push({ movie, episode: firstEp });
       } else {
         feed.push({ movie, episode: {
           id: movie.id,
@@ -197,7 +197,7 @@ export const ForYou = () => {
       className="bg-black fixed inset-0 z-50 flex flex-col pb-24 select-none"
     >
       {/* Top Header overlay */}
-      <div className={`absolute top-0 left-0 right-0 p-2 sm:p-4 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] flex items-center justify-between gap-1.5 z-40 bg-gradient-to-b from-black/90 via-black/40 to-transparent transition-all duration-500 max-w-full overflow-hidden ${
+      <div className={`absolute top-0 left-0 right-0 p-2 sm:p-4 pt-[calc(2.5rem+var(--tg-safe-area-inset-top,env(safe-area-inset-top,0px)))] flex items-center justify-between gap-1.5 z-40 bg-gradient-to-b from-black/90 via-black/40 to-transparent transition-all duration-500 max-w-full overflow-hidden ${
         areControlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
       }`}>
         <div className="px-3 py-1 bg-black/50 rounded-full text-white font-bold text-xs pointer-events-auto border border-white/10 backdrop-blur-md shrink-0">
@@ -209,7 +209,7 @@ export const ForYou = () => {
           {/* TON Payment Button */}
           <button 
             onClick={() => setShowTonModal(true)}
-            className="flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-[#0098EA] to-blue-600 rounded-xl text-white font-black text-[11px] sm:text-xs shadow-md shadow-[#0098EA]/30 border border-[#0098EA]/40 active:scale-95 transition-transform shrink-0 whitespace-nowrap"
+            className="flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-[#0098EA] to-blue-600 rounded-xl text-white font-black text-[10px] sm:text-xs shadow-md shadow-[#0098EA]/30 border border-[#0098EA]/40 active:scale-95 transition-transform shrink-0 whitespace-nowrap"
           >
             <Zap size={12} className="text-yellow-300 animate-pulse" />
             <span>{isArabic ? 'TON' : 'TON'}</span>
@@ -263,6 +263,7 @@ export const ForYou = () => {
                 url={ep.videoUrl} 
                 isActive={isCurrentActive}
                 duration={ep.duration}
+                isUIVisible={areControlsVisible}
                 onComplete={() => {
                   useAppStore.getState().completeEpisode(ep.id);
                   setTimeout(() => {
@@ -273,7 +274,7 @@ export const ForYou = () => {
             )}
 
             {/* Right Side Action Buttons */}
-            <div className={`absolute right-3.5 bottom-24 flex flex-col items-center gap-4 z-20 transition-all duration-500 ${
+            <div className={`absolute right-1.5 bottom-24 flex flex-col items-center gap-4 z-20 transition-all duration-500 ${
               areControlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
             }`}>
               {/* Series Avatar Poster with Plus Badge */}
@@ -281,7 +282,7 @@ export const ForYou = () => {
                 className="relative mb-1 group cursor-pointer"
                 onClick={() => navigate(`/watch/${movie.id}?ep=${ep.id}`)}
               >
-                <div className="w-12 h-12 rounded-full p-[2px] bg-gradient-to-tr from-red-600 via-orange-500 to-amber-400 shadow-xl shadow-red-600/20 group-active:scale-95 transition-transform">
+                <div className="w-10 h-10 rounded-full p-[2px] bg-gradient-to-tr from-red-600 via-orange-500 to-amber-400 shadow-xl shadow-red-600/20 group-active:scale-95 transition-transform">
                   <img 
                     src={movie.coverImage} 
                     alt={movie.title} 
@@ -298,14 +299,14 @@ export const ForYou = () => {
                 onClick={() => toggleFavorite(movie.id)}
                 className="flex flex-col items-center gap-1 group"
               >
-                <div className={`w-12 h-12 rounded-full flex items-center justify-center backdrop-blur-xl transition-all duration-200 border shadow-lg group-active:scale-90 ${
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-xl transition-all duration-200 border shadow-lg group-active:scale-90 ${
                   isFav 
                     ? "bg-red-600/30 border-red-500/60 text-red-500 shadow-red-600/30" 
                     : "bg-black/45 border-white/15 text-white hover:border-white/30"
                 }`}>
-                  <Heart size={24} className={isFav ? "fill-red-500 text-red-500 animate-bounce" : "text-white"} />
+                  <Heart size={20} className={isFav ? "fill-red-500 text-red-500 animate-bounce" : "text-white"} />
                 </div>
-                <span className="text-white text-[11px] font-extrabold tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                <span className="text-white text-[10px] font-extrabold tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                   {(movie.rating * 1250).toLocaleString()}
                 </span>
               </button>
@@ -315,10 +316,10 @@ export const ForYou = () => {
                 onClick={() => navigate(`/watch/${movie.id}?ep=${ep.id}`)}
                 className="flex flex-col items-center gap-1 group"
               >
-                <div className="w-12 h-12 bg-black/45 backdrop-blur-xl rounded-full flex items-center justify-center text-white border border-white/15 group-active:scale-90 transition-all shadow-lg hover:border-white/30">
-                  <MessageCircle size={22} className="fill-white/20" />
+                <div className="w-10 h-10 bg-black/45 backdrop-blur-xl rounded-full flex items-center justify-center text-white border border-white/15 group-active:scale-90 transition-all shadow-lg hover:border-white/30">
+                  <MessageCircle size={18} className="fill-white/20" />
                 </div>
-                <span className="text-white text-[11px] font-extrabold tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                <span className="text-white text-[10px] font-extrabold tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                   2.4K
                 </span>
               </button>
@@ -328,10 +329,10 @@ export const ForYou = () => {
                 onClick={() => toggleFavorite(movie.id)}
                 className="flex flex-col items-center gap-1 group"
               >
-                <div className="w-12 h-12 bg-black/45 backdrop-blur-xl rounded-full flex items-center justify-center text-white border border-white/15 group-active:scale-90 transition-all shadow-lg hover:border-white/30">
-                  <Bookmark size={22} className={isFav ? "fill-amber-400 text-amber-400" : "fill-white/20"} />
+                <div className="w-10 h-10 bg-black/45 backdrop-blur-xl rounded-full flex items-center justify-center text-white border border-white/15 group-active:scale-90 transition-all shadow-lg hover:border-white/30">
+                  <Bookmark size={18} className={isFav ? "fill-amber-400 text-amber-400" : "fill-white/20"} />
                 </div>
-                <span className="text-white text-[11px] font-extrabold tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                <span className="text-white text-[10px] font-extrabold tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                   {t('save', 'حفظ')}
                 </span>
               </button>
@@ -349,22 +350,22 @@ export const ForYou = () => {
                 }}
                 className="flex flex-col items-center gap-1 group"
               >
-                <div className="w-12 h-12 bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 rounded-full flex items-center justify-center text-white shadow-xl shadow-indigo-600/25 border border-indigo-400/30 group-active:scale-90 transition-all">
-                  <Share2 size={22} />
+                <div className="w-10 h-10 bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 rounded-full flex items-center justify-center text-white shadow-xl shadow-indigo-600/25 border border-indigo-400/30 group-active:scale-90 transition-all">
+                  <Share2 size={18} />
                 </div>
-                <span className="text-indigo-300 text-[11px] font-extrabold tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                <span className="text-indigo-300 text-[10px] font-extrabold tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
                   {t('share', 'مشاركة')}
                 </span>
               </button>
 
               {/* Live Views Counter */}
               <div className="flex flex-col items-center gap-1 mt-2">
-                <AnimatedViews baseViews={movie.views} className="text-white text-[11px] font-extrabold tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] flex-col !gap-0.5" iconSize={26} />
+                <AnimatedViews baseViews={movie.views} className="text-white text-[10px] font-extrabold tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] flex-col !gap-0.5" iconSize={22} />
               </div>
             </div>
 
             {/* Bottom Info Overlay */}
-            <div className={`absolute bottom-0 left-0 right-16 p-4 pb-20 bg-gradient-to-t from-black/95 via-black/60 to-transparent transition-all duration-500 ${
+            <div className={`absolute bottom-0 left-0 right-14 p-4 pb-20 bg-gradient-to-t from-black/95 via-black/60 to-transparent transition-all duration-500 ${
               areControlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
             }`}>
               <div 

@@ -75,13 +75,13 @@ export const Home = () => {
         <div className="flex items-center gap-2 shrink-0">
           <button 
             onClick={() => navigate('/search')}
-            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-[#1A1A1A] rounded-full border border-white/5 text-white/70 hover:text-white transition-colors active:opacity-80 shrink-0"
+            className="w-8 h-8 sm:w-9 sm:h-9 flex items-center justify-center bg-[#1A1A1A] rounded-xl border border-white/5 text-white/70 hover:text-white transition-colors active:opacity-80 shrink-0"
           >
             <Search size={16} />
           </button>
           <TopPointsBadge />
           <button onClick={() => navigate('/profile')} className="active:opacity-80 transition-transform shrink-0">
-            <img src={avatar} className="w-8 h-8 sm:w-9 sm:h-9 rounded-full border border-red-600/30 bg-[#1A1A1A] object-cover" alt="avatar" />
+            <img src={avatar} className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl border border-red-600/30 bg-[#1A1A1A] object-cover" alt="avatar" />
           </button>
         </div>
       </header>

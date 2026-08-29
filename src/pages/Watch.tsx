@@ -251,13 +251,13 @@ export const Watch = () => {
       dir={isArabic ? 'rtl' : 'ltr'}
     >
       {/* Top Header overlay */}
-      <div className={`absolute top-0 left-0 right-0 p-2 sm:p-4 pt-[calc(0.5rem+env(safe-area-inset-top,0px))] flex items-center justify-between gap-1.5 z-40 bg-gradient-to-b from-black/90 via-black/50 to-transparent transition-all duration-500 max-w-full overflow-hidden ${
+      <div className={`absolute top-0 left-0 right-0 p-2 sm:p-4 pt-[calc(2.5rem+var(--tg-safe-area-inset-top,env(safe-area-inset-top,0px)))] flex items-center justify-between gap-1.5 z-40 bg-gradient-to-b from-black/90 via-black/50 to-transparent transition-all duration-500 max-w-full overflow-hidden ${
         areControlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
       }`}>
         <div className="flex items-center gap-1.5 pointer-events-auto min-w-0 shrink">
           <button 
             onClick={() => setShowEpisodeDrawer(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1 bg-black/50 hover:bg-black/80 rounded-full text-white font-bold text-[11px] sm:text-xs border border-white/15 backdrop-blur-md active:scale-95 transition-transform shrink-0"
+            className="flex items-center gap-1.5 px-2.5 h-8 sm:h-9 bg-black/50 hover:bg-black/80 rounded-xl text-white font-bold text-[10px] sm:text-xs border border-white/15 backdrop-blur-md active:scale-95 transition-transform shrink-0"
           >
             <Layers size={13} className="text-red-500" />
             <span>{isArabic ? `ح ${currentEp?.episodeNumber || 1}` : `Ep ${currentEp?.episodeNumber || 1}`}</span>
@@ -272,13 +272,27 @@ export const Watch = () => {
           {/* TON Payment Button */}
           <button 
             onClick={() => setShowTonModal(true)}
-            className="flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-[#0098EA] to-blue-600 rounded-xl text-white font-black text-[11px] sm:text-xs shadow-md shadow-[#0098EA]/30 border border-[#0098EA]/40 active:scale-95 transition-transform shrink-0 whitespace-nowrap"
+            className="flex items-center gap-1 px-2.5 h-8 sm:h-9 bg-gradient-to-r from-[#0098EA] to-blue-600 rounded-xl text-white font-black text-[10px] sm:text-xs shadow-md shadow-[#0098EA]/30 border border-[#0098EA]/40 active:scale-95 transition-transform shrink-0 whitespace-nowrap"
           >
             <Zap size={12} className="text-yellow-300 animate-pulse" />
             <span>{isArabic ? 'TON' : 'TON'}</span>
           </button>
         </div>
       </div>
+
+      {/* Global Exit Button on the left, matching Sound Toggle height */}
+      <div className={`absolute top-[calc(5.5rem+var(--tg-safe-area-inset-top,env(safe-area-inset-top,0px)))] left-3.5 right-3.5 z-30 flex items-center justify-start pointer-events-none transition-all duration-500 ${
+        areControlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+      }`}>
+        <button 
+          onClick={() => navigate(-1)}
+          className="w-10 h-10 bg-black/60 backdrop-blur-xl rounded-full flex items-center justify-center text-white/90 border border-white/20 shadow-[0_4px_15px_rgba(0,0,0,0.5)] active:scale-90 transition-all hover:bg-black/80 hover:text-white hover:border-white/40 pointer-events-auto"
+        >
+          <ArrowLeft size={20} className={isArabic ? 'rotate-180' : ''} />
+        </button>
+      </div>
+
+
 
       {/* Vertical Scroll Container */}
       <div 
@@ -303,7 +317,8 @@ export const Watch = () => {
                 <div className="absolute inset-0 bg-[#0A0A0A] flex flex-col items-center justify-center z-10 px-6 text-center">
                   <div className="w-20 h-20 bg-amber-500/10 rounded-3xl flex items-center justify-center mb-4 border border-amber-500/30 shadow-lg shadow-amber-500/20">
                     <span className="text-3xl">🔒</span>
-                  </div>
+    
+              </div>
                   <h3 className="text-xl font-black text-white mb-2">
                     {isArabic ? `إكمال الفيلم - الحلقة ${ep.episodeNumber}` : `Continue Drama - Ep ${ep.episodeNumber}`}
                   </h3>
@@ -329,14 +344,17 @@ export const Watch = () => {
                       <Gift size={16} />
                       <span>{isArabic ? 'إكمال الفيلم: دفع 50 نقطة' : 'Continue: Pay 50 Coins'}</span>
                     </button>
-                  </div>
-                </div>
+    
+              </div>
+  
+              </div>
               ) : (
                 <ReelPlayer 
                   url={ep.videoUrl} 
                   isActive={isCurrentActive}
                   shouldLoad={isNearActive}
                   duration={ep.duration}
+                  isUIVisible={areControlsVisible}
                   onComplete={() => {
                     useAppStore.getState().completeEpisode(ep.id);
 
@@ -371,7 +389,8 @@ export const Watch = () => {
                 <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
                   <div className="w-20 h-20 bg-black/50 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(220,38,38,0.3)] border border-white/10">
                     <Loader2 size={40} className="animate-spin text-red-600" />
-                  </div>
+    
+              </div>
                   <h3 className="text-2xl font-black text-white drop-shadow-lg mb-2">
                     {isArabic ? 'الحلقة القادمة...' : 'Up Next...'}
                   </h3>
@@ -379,89 +398,87 @@ export const Watch = () => {
                     <p className="text-red-400 font-bold text-sm">
                       {isArabic ? `تشغيل حلقة ${autoPlayingNext.nextEpNum}` : `Playing Episode ${autoPlayingNext.nextEpNum}`}
                     </p>
-                  </div>
-                </div>
+    
+              </div>
+  
+              </div>
               )}
 
               {/* Right Side Action Buttons */}
-              <div className={`absolute right-3.5 bottom-20 flex flex-col items-center gap-4 z-20 transition-all duration-500 ${
-                areControlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-              }`}>
-                {/* Exit Button */}
-                <button 
-                  onClick={() => navigate(-1)}
-                  className="flex flex-col items-center gap-1 group mb-2"
-                >
-                  <div className="w-10 h-10 bg-black/50 backdrop-blur-xl rounded-full flex items-center justify-center text-white/90 border border-white/15 shadow-[0_4px_15px_rgba(0,0,0,0.5)] group-active:scale-90 transition-all hover:bg-black/70 hover:text-white hover:border-white/30">
-                    <ArrowLeft size={20} className={isArabic ? 'rotate-180' : ''} />
-                  </div>
-                </button>
+              <div className="absolute right-1.5 bottom-20 flex flex-col items-center gap-4 z-20 pointer-events-auto">
+                <div className={`flex flex-col items-center gap-4 transition-all duration-500 ${areControlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
+                  {/* Series Avatar with Follow Badge */}
+                  <div className="relative mb-1 group cursor-pointer" onClick={() => setShowEpisodeDrawer(true)}>
+                    <div className="w-10 h-10 rounded-full p-[2px] bg-gradient-to-tr from-red-600 via-orange-500 to-amber-400 shadow-xl shadow-red-600/20 group-active:scale-95 transition-transform">
+                      <img 
+                        src={movie.coverImage} 
+                        alt={movie.title} 
+                        className="w-full h-full object-cover rounded-full" 
+                      />
+      
+              </div>
+                    <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 bg-red-600 text-white rounded-full p-0.5 shadow-md border border-black">
+                      <Plus size={12} strokeWidth={3} />
+      
+              </div>
+    
+              </div>
 
-                {/* Series Avatar with Follow Badge */}
-                <div className="relative mb-1 group cursor-pointer" onClick={() => setShowEpisodeDrawer(true)}>
-                  <div className="w-12 h-12 rounded-full p-[2px] bg-gradient-to-tr from-red-600 via-orange-500 to-amber-400 shadow-xl shadow-red-600/20 group-active:scale-95 transition-transform">
-                    <img 
-                      src={movie.coverImage} 
-                      alt={movie.title} 
-                      className="w-full h-full object-cover rounded-full" 
-                    />
-                  </div>
-                  <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 bg-red-600 text-white rounded-full p-0.5 shadow-md border border-black">
-                    <Plus size={12} strokeWidth={3} />
-                  </div>
-                </div>
+                  {/* Like / Favorite Button */}
+                  <button 
+                    onClick={() => toggleFavorite(movie.id)}
+                    className="flex flex-col items-center gap-1 group"
+                  >
+                    <div className={`w-10 h-10 rounded-full flex items-center justify-center backdrop-blur-xl transition-all duration-200 border shadow-lg group-active:scale-90 ${
+                      isFav 
+                        ? "bg-red-600/30 border-red-500/60 text-red-500 shadow-red-600/30" 
+                        : "bg-black/45 border-white/15 text-white hover:border-white/30"
+                    }`}>
+                      <Heart size={20} className={isFav ? "fill-red-500 text-red-500 animate-bounce" : "text-white"} />
+      
+              </div>
+                    <span className="text-white text-[10px] font-extrabold tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                      {(movie.rating * 1250).toLocaleString()}
+                    </span>
+                  </button>
+                  
+                  {/* Episodes Drawer Button */}
+                  <button 
+                    onClick={() => setShowEpisodeDrawer(true)}
+                    className="flex flex-col items-center gap-1 group"
+                  >
+                    <div className="w-10 h-10 bg-black/45 backdrop-blur-xl rounded-full flex items-center justify-center text-red-400 border border-white/15 group-active:scale-90 transition-all shadow-lg hover:border-white/30">
+                      <Layers size={18} className="text-red-500" />
+      
+              </div>
+                    <span className="text-white text-[10px] font-extrabold tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                      {isArabic ? 'الحلقات' : 'Episodes'}
+                    </span>
+                  </button>
 
-                {/* Like / Favorite Button */}
-                <button 
-                  onClick={() => toggleFavorite(movie.id)}
-                  className="flex flex-col items-center gap-1 group"
-                >
-                  <div className={`w-12 h-12 rounded-full flex items-center justify-center backdrop-blur-xl transition-all duration-200 border shadow-lg group-active:scale-90 ${
-                    isFav 
-                      ? "bg-red-600/30 border-red-500/60 text-red-500 shadow-red-600/30" 
-                      : "bg-black/45 border-white/15 text-white hover:border-white/30"
-                  }`}>
-                    <Heart size={24} className={isFav ? "fill-red-500 text-red-500 animate-bounce" : "text-white"} />
+                  {/* Referral / Share Button with Coin Badge */}
+                  <button 
+                    onClick={() => setShowReferralModal(true)}
+                    className="flex flex-col items-center gap-1 group relative"
+                  >
+                    <div className="w-10 h-10 bg-gradient-to-tr from-amber-600 via-amber-500 to-yellow-400 rounded-full flex items-center justify-center text-white shadow-xl shadow-amber-500/25 border border-amber-300/30 group-active:scale-90 transition-all">
+                      <Share2 size={18} />
+      
+              </div>
+                    <span className="text-amber-400 text-[10px] font-extrabold tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+                      {isArabic ? '+50 نقطة' : '+50 Coins'}
+                    </span>
+                  </button>
+                  
+                  {/* Live Views Counter */}
+                  <div className="flex flex-col items-center gap-1 mt-2">
+                    <AnimatedViews baseViews={movie.views} className="text-white text-[10px] font-extrabold tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] flex-col !gap-0.5" iconSize={22} />
                   </div>
-                  <span className="text-white text-[11px] font-extrabold tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-                    {(movie.rating * 1250).toLocaleString()}
-                  </span>
-                </button>
-                
-                {/* Episodes Drawer Button */}
-                <button 
-                  onClick={() => setShowEpisodeDrawer(true)}
-                  className="flex flex-col items-center gap-1 group"
-                >
-                  <div className="w-12 h-12 bg-black/45 backdrop-blur-xl rounded-full flex items-center justify-center text-red-400 border border-white/15 group-active:scale-90 transition-all shadow-lg hover:border-white/30">
-                    <Layers size={22} className="text-red-500" />
-                  </div>
-                  <span className="text-white text-[11px] font-extrabold tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-                    {isArabic ? 'الحلقات' : 'Episodes'}
-                  </span>
-                </button>
-
-                {/* Referral / Share Button with Coin Badge */}
-                <button 
-                  onClick={() => setShowReferralModal(true)}
-                  className="flex flex-col items-center gap-1 group relative"
-                >
-                  <div className="w-12 h-12 bg-gradient-to-tr from-amber-600 via-amber-500 to-yellow-400 rounded-full flex items-center justify-center text-white shadow-xl shadow-amber-500/25 border border-amber-300/30 group-active:scale-90 transition-all">
-                    <Share2 size={22} />
-                  </div>
-                  <span className="text-amber-400 text-[11px] font-extrabold tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
-                    {isArabic ? '+50 نقطة' : '+50 Coins'}
-                  </span>
-                </button>
-                
-                {/* Live Views Counter */}
-                <div className="flex flex-col items-center gap-1 mt-2">
-                  <AnimatedViews baseViews={movie.views} className="text-white text-[11px] font-extrabold tracking-tight drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)] flex-col !gap-0.5" iconSize={26} />
                 </div>
               </div>
 
               {/* Bottom Episode Info & Details Overlay */}
-              <div className={`absolute bottom-0 left-0 right-16 p-4 pb-6 bg-gradient-to-t from-black/95 via-black/60 to-transparent transition-all duration-500 ${
+              <div className={`absolute bottom-0 left-0 right-14 p-4 pb-6 bg-gradient-to-t from-black/95 via-black/60 to-transparent transition-all duration-500 ${
                 areControlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
               }`}>
                 <div className="pointer-events-auto space-y-1.5">
@@ -476,7 +493,8 @@ export const Watch = () => {
                     <span className="px-2 py-0.5 bg-amber-500/20 text-amber-300 text-[10px] font-bold rounded-full backdrop-blur-md border border-amber-500/30 flex items-center gap-1">
                       ★ {movie.rating}
                     </span>
-                  </div>
+    
+              </div>
 
                   {/* Title */}
                   <h3 className="text-white font-extrabold text-base tracking-tight drop-shadow-lg truncate max-w-[260px]">
@@ -487,7 +505,9 @@ export const Watch = () => {
                   <p className="text-white/80 text-xs line-clamp-2 leading-relaxed drop-shadow-md">
                     {movie.description}
                   </p>
-                </div>
+  
+              </div>
+
               </div>
             </div>
           );
@@ -504,6 +524,7 @@ export const Watch = () => {
                 <h3 className="text-base font-bold text-white">
                   {isArabic ? 'اختر الحلقة للمشاهدة' : 'Select Episode'}
                 </h3>
+
               </div>
               <button 
                 onClick={() => setShowEpisodeDrawer(false)}
