@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Gift, Tv, CheckCircle, Clock, Film, Users, Share2, Flame, Coins } from 'lucide-react';
+import { Gift, Tv, CheckCircle, Clock, Film, Users, Share2, Flame, Coins, Globe } from 'lucide-react';
 import { useAppStore } from '../store';
 import { getUserData } from '../services/userService';
 import { getCurrentUserId } from '../services/referralService';
@@ -35,6 +35,13 @@ export const Tasks = () => {
   const [adsWatchedCount, setAdsWatchedCount] = useState(0);
   const DAILY_AD_LIMIT = 20;
 
+  
+  // Site Visit State
+  const [isSiteVisitLoading, setIsSiteVisitLoading] = useState(false);
+  const [lastSiteVisitClaim, setLastSiteVisitClaim] = useState<number>(0);
+  const [siteVisitTimeLeft, setSiteVisitTimeLeft] = useState<string | null>(null);
+  const SITE_VISIT_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+
   // Adsgram general Watch Ad State
   const [isWatchingAd, setIsWatchingAd] = useState(false);
 
@@ -54,6 +61,9 @@ export const Tasks = () => {
         if (data) {
           if (data.lastMonetagClaim) {
             setLastMonetagClaim(Number(data.lastMonetagClaim) || 0);
+          }
+          if (data.lastSiteVisitClaim) {
+            setLastSiteVisitClaim(Number(data.lastSiteVisitClaim) || 0);
           }
           const todayStr = new Date().toISOString().split('T')[0];
           if (data.dailyAdsDate === todayStr) {
@@ -90,6 +100,31 @@ export const Tasks = () => {
     }, 1000);
     return () => clearInterval(interval);
   }, [lastMonetagClaim]);
+
+  
+  // Site Visit Timer
+  useEffect(() => {
+    if (!lastSiteVisitClaim) {
+      setSiteVisitTimeLeft(null);
+      return;
+    }
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const diff = SITE_VISIT_COOLDOWN_MS - (now - lastSiteVisitClaim);
+      
+      if (diff <= 0) {
+        setSiteVisitTimeLeft(null);
+        setLastSiteVisitClaim(0);
+        clearInterval(interval);
+      } else {
+        const h = Math.floor(diff / (1000 * 60 * 60));
+        const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const s = Math.floor((diff % (1000 * 60)) / 1000);
+        setSiteVisitTimeLeft(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [lastSiteVisitClaim]);
 
   // Daily Streak Timer
   useEffect(() => {
@@ -158,6 +193,49 @@ export const Tasks = () => {
       alert(isArabic ? 'حدث خطأ في تحميل الإعلان، يرجى إيقاف مانع الإعلانات أو المحاولة لاحقاً.' : 'Ad failed to load. Please disable adblocker or try again later.');
       setIsMonetagLoading(false);
     }
+  };
+
+  
+  const handleSiteVisit = () => {
+    if (isSiteVisitLoading || siteVisitTimeLeft) return;
+    setIsSiteVisitLoading(true);
+    
+    // Open the website in a new tab
+    window.open('https://omg10.com/4/11695668', '_blank');
+    
+    // Add a 5 second delay to simulate user waiting/visiting the site before claiming
+    setTimeout(async () => {
+      const uid = getCurrentUserId();
+      if (!uid) {
+        setIsSiteVisitLoading(false);
+        return;
+      }
+      
+      try {
+        const res = await fetch('/api/visit/claim', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userid: uid })
+        });
+        const data = await res.json();
+        
+        if (data.success) {
+          useAppStore.getState().setCoinsFromServer(data.newTotal);
+          setLastSiteVisitClaim(data.lastClaim);
+          alert(isArabic ? '🎉 حصلت على 50 نقطة لزيارة الموقع' : '🎉 You got 50 points for visiting');
+        } else {
+           if (data.remainingMs) {
+              setLastSiteVisitClaim(Date.now() - (SITE_VISIT_COOLDOWN_MS - data.remainingMs));
+           }
+           alert(isArabic ? 'لم يحن وقت المكافأة بعد' : 'Reward not ready yet');
+        }
+      } catch (e) {
+        console.error("Site visit claim error:", e);
+        alert(isArabic ? 'حدث خطأ. يرجى المحاولة لاحقاً.' : 'Error occurred. Please try again later.');
+      } finally {
+        setIsSiteVisitLoading(false);
+      }
+    }, 5000);
   };
 
   const handleRewardAd = async () => {
@@ -344,11 +422,11 @@ export const Tasks = () => {
         {/* Monetag Tasks */}
         <div className="space-y-3">
           <h3 className="text-sm text-white/50 font-bold uppercase tracking-wider px-1">
-            {isArabic ? 'اعلانات Monetag' : 'Monetag Ads'}
+            {isArabic ? 'إعلانات A' : 'Ads A'}
           </h3>
           <TaskItem 
             icon={<Tv size={20} />}
-            title={isArabic ? 'شاهد إعلان Monetag' : 'Watch Monetag Ad'}
+            title={isArabic ? 'شاهد إعلان A' : 'Watch Ad A'}
             subtitle={isArabic ? 'متاح مرة كل 24 ساعة' : 'Available once every 24h'}
             reward="100"
             actionText={isArabic ? 'مطالبة' : 'Claim'}
@@ -363,11 +441,11 @@ export const Tasks = () => {
         {/* Adsgram Tasks */}
         <div className="space-y-3 pt-2">
           <h3 className="text-sm text-white/50 font-bold uppercase tracking-wider px-1">
-            {isArabic ? 'اعلانات Adsgram' : 'Adsgram Ads'}
+            {isArabic ? 'إعلانات B' : 'Ads B'}
           </h3>
           <TaskItem 
             icon={<Tv size={20} />}
-            title={isArabic ? 'مكافأة إعلانات Adsgram' : 'Adsgram Ad Reward'}
+            title={isArabic ? 'مكافأة إعلان B' : 'Ad B Reward'}
             subtitle={`${adsWatchedCount}/${DAILY_AD_LIMIT} ${isArabic ? 'يومياً' : 'Daily'}`}
             reward="100"
             actionText={isArabic ? 'مشاهدة' : 'Watch'}
@@ -394,6 +472,19 @@ export const Tasks = () => {
           <h3 className="text-sm text-white/50 font-bold uppercase tracking-wider px-1">
             {isArabic ? 'مهام أخرى' : 'Other Tasks'}
           </h3>
+          <TaskItem 
+            icon={<Globe size={20} />}
+            title={isArabic ? 'زيارة الموقع' : 'Visit Website'}
+            subtitle={isArabic ? 'متاح مرة كل 24 ساعة' : 'Available once every 24h'}
+            reward="50"
+            actionText={isArabic ? 'زيارة' : 'Visit'}
+            onAction={handleSiteVisit}
+            disabled={!!siteVisitTimeLeft}
+            loading={isSiteVisitLoading}
+            completed={false}
+            timer={siteVisitTimeLeft}
+          />
+
 
           <TaskItem 
             icon={<Share2 size={20} />}
