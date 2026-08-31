@@ -85,6 +85,7 @@ export const useAppStore = create<AppState>()(
           [movieId]: item
         }
       })),
+      setCoinsFromServer: (coins) => set({ coins }),
       addCoins: (amount, reason = 'إضافة نقاط') => set((state) => {
         const newTransaction: CoinTransaction = {
           id: Math.random().toString(36).substring(2, 9),

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Gift, Tv, CheckCircle, Clock, Film, Users, Share2, Flame, Coins, Globe } from 'lucide-react';
 import { useAppStore } from '../store';
-import { getUserData } from '../services/userService';
+import { getUserData, claimMonetagReward, claimSiteVisitReward } from '../services/userService';
 import { getCurrentUserId } from '../services/referralService';
 import { showAdsgramAd, ADSGRAM_BLOCKS } from '../services/adsgramService';
 import { ReferralHub } from '../components/ReferralHub';
@@ -163,15 +163,10 @@ export const Tasks = () => {
     if (typeof window !== 'undefined' && (window as any).show_11695307) {
       (window as any).show_11695307().then(async () => {
         try {
-          const res = await fetch('/api/monetag/claim', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userid: uid })
-          });
-          const data = await res.json();
+          const data = await claimMonetagReward(uid);
           if (data.success) {
-            useAppStore.getState().setCoinsFromServer(data.newTotal);
-            setLastMonetagClaim(data.lastClaim);
+            useAppStore.getState().addCoins(100, isArabic ? 'إعلانات A' : 'Ads A');
+            setLastMonetagClaim(data.lastClaim!);
             alert(isArabic ? '🎉 حصلت على 100 نقطة' : '🎉 You got 100 points');
           } else {
              if (data.remainingMs) {
@@ -212,16 +207,10 @@ export const Tasks = () => {
       }
       
       try {
-        const res = await fetch('/api/visit/claim', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userid: uid })
-        });
-        const data = await res.json();
-        
+        const data = await claimSiteVisitReward(uid);
         if (data.success) {
-          useAppStore.getState().setCoinsFromServer(data.newTotal);
-          setLastSiteVisitClaim(data.lastClaim);
+          useAppStore.getState().addCoins(50, isArabic ? 'زيارة الموقع' : 'Visit Website');
+          setLastSiteVisitClaim(data.lastClaim!);
           alert(isArabic ? '🎉 حصلت على 50 نقطة لزيارة الموقع' : '🎉 You got 50 points for visiting');
         } else {
            if (data.remainingMs) {

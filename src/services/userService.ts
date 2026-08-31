@@ -116,3 +116,81 @@ export async function getUserData(userId: string) {
     return null;
   }
 }
+
+export async function claimMonetagReward(userId: string): Promise<{ success: boolean; newTotal?: number; lastClaim?: number; remainingMs?: number; error?: string }> {
+  try {
+    if (!userId) return { success: false, error: 'Invalid data' };
+    const userRef = doc(db, 'users', userId);
+    
+    const REWARD = 100;
+    const COOLDOWN_MS = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    return await runTransaction(db, async (transaction) => {
+      const userSnap = await transaction.get(userRef);
+      if (!userSnap.exists()) {
+        throw new Error('User not found');
+      }
+      const data = userSnap.data();
+      const currentCoins = data.coins || 0;
+      const lastClaim = data.lastMonetagClaim || 0;
+
+      if (now - lastClaim < COOLDOWN_MS) {
+        return { 
+          success: false, 
+          remainingMs: COOLDOWN_MS - (now - lastClaim) 
+        };
+      }
+
+      const newTotal = currentCoins + REWARD;
+      transaction.update(userRef, { 
+        coins: newTotal,
+        lastMonetagClaim: now
+      });
+
+      return { success: true, newTotal, lastClaim: now };
+    });
+  } catch (error: any) {
+    console.error('Error claiming monetag:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function claimSiteVisitReward(userId: string): Promise<{ success: boolean; newTotal?: number; lastClaim?: number; remainingMs?: number; error?: string }> {
+  try {
+    if (!userId) return { success: false, error: 'Invalid data' };
+    const userRef = doc(db, 'users', userId);
+    
+    const REWARD = 50;
+    const COOLDOWN_MS = 24 * 60 * 60 * 1000;
+    const now = Date.now();
+
+    return await runTransaction(db, async (transaction) => {
+      const userSnap = await transaction.get(userRef);
+      if (!userSnap.exists()) {
+        throw new Error('User not found');
+      }
+      const data = userSnap.data();
+      const currentCoins = data.coins || 0;
+      const lastClaim = data.lastSiteVisitClaim || 0;
+
+      if (now - lastClaim < COOLDOWN_MS) {
+        return { 
+          success: false, 
+          remainingMs: COOLDOWN_MS - (now - lastClaim) 
+        };
+      }
+
+      const newTotal = currentCoins + REWARD;
+      transaction.update(userRef, { 
+        coins: newTotal,
+        lastSiteVisitClaim: now
+      });
+
+      return { success: true, newTotal, lastClaim: now };
+    });
+  } catch (error: any) {
+    console.error('Error claiming site visit:', error);
+    return { success: false, error: error.message };
+  }
+}
