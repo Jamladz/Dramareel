@@ -155,6 +155,7 @@ export const Tasks = () => {
       });
     } else {
       console.warn("Monetag script not loaded");
+      alert(isArabic ? 'حدث خطأ في تحميل الإعلان، يرجى إيقاف مانع الإعلانات أو المحاولة لاحقاً.' : 'Ad failed to load. Please disable adblocker or try again later.');
       setIsMonetagLoading(false);
     }
   };
@@ -340,12 +341,11 @@ export const Tasks = () => {
           </div>
         </div>
 
-        {/* Tasks List */}
+        {/* Monetag Tasks */}
         <div className="space-y-3">
           <h3 className="text-sm text-white/50 font-bold uppercase tracking-wider px-1">
-            {isArabic ? 'مهام متكررة' : 'Recurring Tasks'}
+            {isArabic ? 'اعلانات Monetag' : 'Monetag Ads'}
           </h3>
-          
           <TaskItem 
             icon={<Tv size={20} />}
             title={isArabic ? 'شاهد إعلان Monetag' : 'Watch Monetag Ad'}
@@ -358,7 +358,13 @@ export const Tasks = () => {
             completed={false}
             timer={monetagTimeLeft}
           />
+        </div>
 
+        {/* Adsgram Tasks */}
+        <div className="space-y-3 pt-2">
+          <h3 className="text-sm text-white/50 font-bold uppercase tracking-wider px-1">
+            {isArabic ? 'اعلانات Adsgram' : 'Adsgram Ads'}
+          </h3>
           <TaskItem 
             icon={<Tv size={20} />}
             title={isArabic ? 'مكافأة إعلانات Adsgram' : 'Adsgram Ad Reward'}
@@ -386,7 +392,7 @@ export const Tasks = () => {
 
         <div className="space-y-3 pt-2">
           <h3 className="text-sm text-white/50 font-bold uppercase tracking-wider px-1">
-            {isArabic ? 'مهام لمرة واحدة' : 'One-time Tasks'}
+            {isArabic ? 'مهام أخرى' : 'Other Tasks'}
           </h3>
 
           <TaskItem 
