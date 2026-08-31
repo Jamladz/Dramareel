@@ -39,7 +39,9 @@ export const Profile = () => {
     setPremiumUntil,
     buyVipPass,
     isVipActive,
-    getTotalCoinsEarned
+    getTotalCoinsEarned,
+    hasJoinedTelegram,
+    setJoinedTelegram
   } = useAppStore();
   
   const [tgUser, setTgUser] = useState<any>(null);
@@ -116,6 +118,64 @@ export const Profile = () => {
       console.error('Error claiming daily reward with ad:', err);
     } finally {
       setIsClaimingDaily(false);
+    }
+  };
+
+  
+  const [isRewardAdLoading, setIsRewardAdLoading] = useState(false);
+  const [adsWatchedCount, setAdsWatchedCount] = useState(0);
+  const DAILY_AD_LIMIT = 20;
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      if (getCurrentUserId()) {
+        const data = await getUserData(getCurrentUserId());
+        if (data) {
+          const todayStr = new Date().toISOString().split('T')[0];
+          if (data.dailyAdsDate === todayStr) {
+            setAdsWatchedCount(data.adsWatchedToday || 0);
+          } else {
+            setAdsWatchedCount(0);
+          }
+        }
+      }
+    };
+    fetchUserData();
+  }, [getCurrentUserId()]);
+
+  const handleRewardAd = async () => {
+    if (adsWatchedCount >= DAILY_AD_LIMIT) {
+      alert(isArabic ? 'لقد وصلت إلى الحد اليومي، حاول غدًا.' : 'Daily limit reached, try tomorrow.');
+      return;
+    }
+    
+    setIsRewardAdLoading(true);
+    try {
+      const success = await showAdsgramAd(ADSGRAM_BLOCKS.REWARD_AD);
+      if (success) {
+        // Wait 2-3 seconds for backend to process the callback
+        await new Promise(r => setTimeout(r, 2500));
+        
+        // Fetch new balance from backend
+        if (getCurrentUserId()) {
+          const data = await getUserData(getCurrentUserId());
+          if (data && data.coins > coins) {
+             useAppStore.getState().setCoinsFromServer(data.coins);
+             const todayStr = new Date().toISOString().split('T')[0];
+             if (data.dailyAdsDate === todayStr) {
+               setAdsWatchedCount(data.adsWatchedToday || 0);
+             }
+             alert(isArabic ? 'تمت إضافة 100 نقطة 🎉' : 'Added 100 points 🎉');
+          } else {
+             // Fallback if backend didn't update yet or failed
+             alert(isArabic ? 'يبدو أن تأكيد المكافأة قد تأخر. سيتم التحديث قريباً.' : 'Reward confirmation delayed. Will update soon.');
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Reward ad error:', err);
+    } finally {
+      setIsRewardAdLoading(false);
     }
   };
 
@@ -501,6 +561,33 @@ export const Profile = () => {
               <span className="text-xs text-amber-400 font-black bg-amber-500/10 px-2 py-1 rounded-md" dir="ltr">+250</span>
             </button>
 
+            
+            {/* AdsGram Reward Ad Task */}
+            <button 
+              onClick={handleRewardAd}
+              disabled={isRewardAdLoading || adsWatchedCount >= DAILY_AD_LIMIT}
+              className="bg-[#1A1A1A] border border-blue-500/20 p-4 rounded-2xl flex items-center justify-between active:opacity-70 transition-opacity w-full disabled:opacity-50"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center flex-none">
+                  <Tv className="text-blue-500" size={16} />
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className="font-bold text-sm text-white">
+                    {isRewardAdLoading 
+                      ? (isArabic ? 'جاري التحميل...' : 'Loading...') 
+                      : (isArabic ? '🎬 شاهد إعلان واحصل على مكافأة' : '🎬 Watch Ad for Reward')}
+                  </span>
+                  <span className="text-[10px] text-white/50 font-mono mt-0.5">
+                    {adsWatchedCount}/{DAILY_AD_LIMIT} {isArabic ? 'يومياً' : 'Daily'}
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-1">
+                 <span className="text-xs text-blue-500 font-black bg-blue-500/10 px-2 py-1 rounded-md" dir="ltr">+100</span>
+              </div>
+            </button>
+
             <button 
               onClick={handleWatchAd}
               disabled={isWatchingAd}
@@ -518,8 +605,60 @@ export const Profile = () => {
               </div>
               <span className="text-xs text-green-500 font-black bg-green-500/10 px-2 py-1 rounded-md" dir="ltr">+30</span>
             </button>
+
+            <button 
+              onClick={() => {
+                if (hasJoinedTelegram) return;
+                window.open('https://t.me/dramareel2026', '_blank');
+                setTimeout(() => {
+                  useAppStore.getState().setJoinedTelegram();
+                  useAppStore.getState().addCoins(100, 'انضمام لقناة التلجرام');
+                }, 2000);
+              }}
+              disabled={hasJoinedTelegram}
+              className="bg-[#1A1A1A] border border-cyan-500/20 p-4 rounded-2xl flex items-center justify-between active:opacity-70 transition-opacity w-full disabled:opacity-50"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-cyan-500/10 flex items-center justify-center flex-none">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cyan-400"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                </div>
+                <span className="font-bold text-sm text-white">
+                  {hasJoinedTelegram 
+                    ? (isArabic ? 'مكتملة' : 'Completed') 
+                    : (isArabic ? 'انضم إلى قناتنا على تلجرام' : 'Join Telegram Channel')}
+                </span>
+              </div>
+              <span className="text-xs text-cyan-400 font-black bg-cyan-500/10 px-2 py-1 rounded-md" dir="ltr">+100</span>
+            </button>
           </div>
         </div>
+
+        
+            {/* AdsGram Reward Ad Task */}
+            <button 
+              onClick={handleRewardAd}
+              disabled={isRewardAdLoading || adsWatchedCount >= DAILY_AD_LIMIT}
+              className="bg-[#1A1A1A] border border-blue-500/20 p-4 rounded-2xl flex items-center justify-between active:opacity-70 transition-opacity w-full disabled:opacity-50"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center flex-none">
+                  <Tv className="text-blue-500" size={16} />
+                </div>
+                <div className="flex flex-col items-start">
+                  <span className="font-bold text-sm text-white">
+                    {isRewardAdLoading 
+                      ? (isArabic ? 'جاري التحميل...' : 'Loading...') 
+                      : (isArabic ? '🎬 شاهد إعلان واحصل على مكافأة' : '🎬 Watch Ad for Reward')}
+                  </span>
+                  <span className="text-[10px] text-white/50 font-mono mt-0.5">
+                    {adsWatchedCount}/{DAILY_AD_LIMIT} {isArabic ? 'يومياً' : 'Daily'}
+                  </span>
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-1">
+                 <span className="text-xs text-blue-500 font-black bg-blue-500/10 px-2 py-1 rounded-md" dir="ltr">+100</span>
+              </div>
+            </button>
 
         {/* TON Crypto Subscription Section */}
         <div className="w-full">

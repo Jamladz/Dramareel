@@ -1,4 +1,6 @@
-// Adsgram Telegram Ad Controller Service
+const fs = require('fs');
+
+let adsgramCode = `// Adsgram Telegram Ad Controller Service
 declare global {
   interface Window {
     Adsgram?: {
@@ -9,8 +11,8 @@ declare global {
   }
 }
 
-// Block ID
-export const ADSGRAM_BLOCK_ID = "45442";
+// ضع_BLOCK_ID_هنا
+export const ADSGRAM_BLOCK_ID = "ضع_BLOCK_ID_هنا";
 
 export const ADSGRAM_BLOCKS = {
   EPISODE_REWARD: 'int-39490', // Adsgram Ad for episode unlock
@@ -44,3 +46,7 @@ export async function showAdsgramAd(blockId: string): Promise<boolean> {
     }
   });
 }
+`;
+
+fs.writeFileSync('src/services/adsgramService.ts', adsgramCode);
+console.log('patched adsgramService');

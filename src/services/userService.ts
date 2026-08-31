@@ -102,3 +102,17 @@ export async function completeTelegramTask(userId: string, taskId: string, rewar
     return { success: false, error: error.message };
   }
 }
+
+export async function getUserData(userId: string) {
+  try {
+    const userRef = doc(db, 'users', userId);
+    const snap = await getDoc(userRef);
+    if (snap.exists()) {
+      return snap.data();
+    }
+    return null;
+  } catch (error) {
+    console.error('Error fetching user data:', error);
+    return null;
+  }
+}

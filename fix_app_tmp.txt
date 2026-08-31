@@ -101,11 +101,9 @@ export default function App() {
       
       if (typeof tg.requestFullscreen === 'function') {
         try {
-          if (tg.isVersionAtLeast && tg.isVersionAtLeast('8.0')) {
-            tg.requestFullscreen();
-          }
+          tg.requestFullscreen();
         } catch (e) {
-          // Suppress error on unsupported clients
+          console.error("Telegram requestFullscreen error:", e);
         }
       }
 

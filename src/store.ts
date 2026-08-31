@@ -8,6 +8,7 @@ interface AppState {
   favorites: string[];
   history: Record<string, WatchHistoryItem>;
   coins: number;
+  hasJoinedTelegram: boolean;
   transactions: CoinTransaction[];
   unlockedEpisodes: string[];
   watchedHours: number;
@@ -20,12 +21,14 @@ interface AppState {
   vipType: 'paid' | 'points' | null;
   completedEpisodes: string[];
   clearFavorites: () => void;
+  setJoinedTelegram: () => void;
   clearHistory: () => void;
   setUser: (user: UserProfile | null) => void;
   setMovies: (movies: Movie[]) => void;
   toggleFavorite: (movieId: string) => void;
   updateHistory: (movieId: string, item: WatchHistoryItem) => void;
   addCoins: (amount: number, reason?: string) => void;
+  setCoinsFromServer: (coins: number) => void;
   spendCoins: (amount: number, reason?: string) => boolean;
   unlockEpisode: (episodeId: string) => void;
   claimDailyReward: () => { success: boolean; reward: number; streak: number };
@@ -51,6 +54,7 @@ export const useAppStore = create<AppState>()(
       favorites: [],
       history: {},
       coins: 0,
+      hasJoinedTelegram: false,
       transactions: [],
       unlockedEpisodes: [],
       watchedHours: 0,
@@ -62,6 +66,7 @@ export const useAppStore = create<AppState>()(
       premiumUntil: null,
       vipType: null,
       completedEpisodes: [],
+      setJoinedTelegram: () => set({ hasJoinedTelegram: true }),
       clearFavorites: () => set({ favorites: [] }),
   clearHistory: () => set({ history: {} }),
   setUser: (user) => set({ user }),

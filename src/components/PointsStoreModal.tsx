@@ -6,7 +6,7 @@ import { useAppStore } from '../store';
 import { ReferralHub } from './ReferralHub';
 import { showAdsgramAd, ADSGRAM_BLOCKS } from '../services/adsgramService';
 import { getCurrentUserId } from '../services/referralService';
-import { getTaskStatus, completeTelegramTask } from '../services/userService';
+import { getTaskStatus, completeTelegramTask, getUserData } from '../services/userService';
 
 interface PointsStoreModalProps {
   isOpen: boolean;
@@ -63,7 +63,7 @@ export const PointsStoreModal: React.FC<PointsStoreModalProps> = ({ isOpen, onCl
 
   const { 
     coins, buyPointsVipPass, isVipActive, isPaidVip, 
-    premiumUntil, claimDailyReward, claimAdReward, getTotalCoinsEarned 
+    premiumUntil, claimDailyReward, claimAdReward, getTotalCoinsEarned, hasJoinedTelegram, setJoinedTelegram 
   } = useAppStore();
 
   const [selectedPkgId, setSelectedPkgId] = useState<string>('points-7days');
@@ -190,6 +190,63 @@ export const PointsStoreModal: React.FC<PointsStoreModalProps> = ({ isOpen, onCl
     }
   };
 
+  
+  const [isRewardAdLoading, setIsRewardAdLoading] = useState(false);
+  const [adsWatchedCount, setAdsWatchedCount] = useState(0);
+  const DAILY_AD_LIMIT = 20;
+
+  React.useEffect(() => {
+    const fetchUserData = async () => {
+      if (getCurrentUserId()) {
+        const data = await getUserData(getCurrentUserId());
+        if (data) {
+          const todayStr = new Date().toISOString().split('T')[0];
+          if (data.dailyAdsDate === todayStr) {
+            setAdsWatchedCount(data.adsWatchedToday || 0);
+          } else {
+            setAdsWatchedCount(0);
+          }
+        }
+      }
+    };
+    if (isOpen) fetchUserData();
+  }, [isOpen]);
+
+  const handleRewardAd = async () => {
+    if (adsWatchedCount >= DAILY_AD_LIMIT) {
+      setMsg({ text: isArabic ? 'لقد وصلت إلى الحد اليومي، حاول غدًا.' : 'Daily limit reached, try tomorrow.', success: false });
+      return;
+    }
+    
+    setIsRewardAdLoading(true);
+    try {
+      const success = await showAdsgramAd(ADSGRAM_BLOCKS.REWARD_AD);
+      if (success) {
+        // Wait 2-3 seconds for backend to process the callback
+        await new Promise(r => setTimeout(r, 2500));
+        
+        // Fetch new balance from backend
+        if (getCurrentUserId()) {
+          const data = await getUserData(getCurrentUserId());
+          if (data && data.coins > coins) {
+             useAppStore.getState().setCoinsFromServer(data.coins);
+             const todayStr = new Date().toISOString().split('T')[0];
+             if (data.dailyAdsDate === todayStr) {
+               setAdsWatchedCount(data.adsWatchedToday || 0);
+             }
+             setMsg({ text: isArabic ? 'تمت إضافة 100 نقطة 🎉' : 'Added 100 points 🎉', success: true });
+          } else {
+             setMsg({ text: isArabic ? 'يبدو أن تأكيد المكافأة قد تأخر. سيتم التحديث قريباً.' : 'Reward confirmation delayed. Will update soon.', success: false });
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Reward ad error:', err);
+    } finally {
+      setIsRewardAdLoading(false);
+    }
+  };
+
   const handleWatchAdReward = async () => {
     setMsg(null);
     setIsAdLoading(true);
@@ -288,7 +345,7 @@ export const PointsStoreModal: React.FC<PointsStoreModalProps> = ({ isOpen, onCl
               <span>{isArabic ? '⚡ كسب المزيد من النقاط المجانية:' : '⚡ Earn More Free Points:'}</span>
             </h3>
 
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {/* 1. Invite Friends */}
               <button 
                 onClick={() => setShowReferralHub(true)}
@@ -302,6 +359,27 @@ export const PointsStoreModal: React.FC<PointsStoreModalProps> = ({ isOpen, onCl
                 </span>
                 <span className="text-[10px] font-bold text-yellow-400 bg-yellow-500/10 px-1.5 py-0.5 rounded-md">
                   +250 {isArabic ? 'نقطة' : 'pts'}
+                </span>
+              </button>
+
+              
+              {/* NEW AdsGram Reward Ad */}
+              <button 
+                onClick={handleRewardAd}
+                disabled={isRewardAdLoading || adsWatchedCount >= DAILY_AD_LIMIT}
+                className="bg-gradient-to-b from-blue-950/40 to-[#1A1815] border border-blue-500/30 hover:border-blue-400 p-3 rounded-2xl flex flex-col items-center text-center gap-1.5 active:scale-95 transition-all group disabled:opacity-50"
+              >
+                <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center group-hover:bg-blue-500 group-hover:text-white transition-colors">
+                  <Tv size={18} />
+                </div>
+                <span className="text-[11px] font-black text-white leading-tight">
+                  {isRewardAdLoading ? (isArabic ? 'تحميل...' : 'Loading...') : (isArabic ? 'شاهد إعلان' : 'Watch Ad')}
+                </span>
+                <span className="text-[10px] text-white/50 font-mono mb-[-4px]">
+                    {adsWatchedCount}/{DAILY_AD_LIMIT}
+                </span>
+                <span className="text-[10px] font-bold text-blue-400 bg-blue-500/10 px-1.5 py-0.5 rounded-md">
+                  +100 {isArabic ? 'نقطة' : 'pts'}
                 </span>
               </button>
 
@@ -338,6 +416,50 @@ export const PointsStoreModal: React.FC<PointsStoreModalProps> = ({ isOpen, onCl
                 </span>
               </button>
             </div>
+
+            
+            {/* Join Telegram Channel Task */}
+            <div className="mt-3 bg-gradient-to-r from-cyan-950/40 to-[#1A1815] border border-cyan-500/30 rounded-2xl p-4 flex items-center justify-between gap-3 relative overflow-hidden">
+              <div className="flex items-center gap-3 relative z-10">
+                <div className="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                </div>
+                <div>
+                  <h4 className="text-[13px] font-black text-white">
+                    {isArabic ? 'انضم إلى قناتنا على تلجرام' : 'Join our Telegram Channel'}
+                  </h4>
+                  <p className="text-[10px] text-cyan-200/70 font-medium leading-tight max-w-[180px]">
+                    {isArabic 
+                      ? 'احصل على 100 نقطة فور انضمامك لقناتنا' 
+                      : 'Get 100 points for joining our channel'}
+                  </p>
+                </div>
+              </div>
+              <div className="relative z-10 flex flex-col items-end gap-2 shrink-0">
+                <div className="text-[10px] font-bold text-cyan-400 bg-cyan-500/10 px-2 py-1 rounded-md">
+                  +100 {isArabic ? 'نقطة' : 'pts'}
+                </div>
+                {hasJoinedTelegram ? (
+                  <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/20 px-2 py-1 rounded-md flex items-center gap-1">
+                    <CheckCircle2 size={12} /> {isArabic ? 'مكتملة' : 'Completed'}
+                  </span>
+                ) : (
+                  <button 
+                    onClick={() => {
+                      window.open('https://t.me/dramareel2026', '_blank');
+                      setTimeout(() => {
+                        useAppStore.getState().setJoinedTelegram();
+                        useAppStore.getState().addCoins(100, 'انضمام لقناة التلجرام');
+                      }, 2000);
+                    }}
+                    className="bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] font-black px-4 py-1.5 rounded-xl transition-all active:scale-95 flex items-center gap-1"
+                  >
+                    {isArabic ? 'انضمام' : 'Join'}
+                  </button>
+                )}
+              </div>
+            </div>
+
 
             {/* Telegram Home Screen Task */}
             {homeScreenStatus !== 'unsupported' && (
