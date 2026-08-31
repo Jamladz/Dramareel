@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { Home, Flame, Heart, PlayCircle, User } from 'lucide-react';
+import { Home, Gift, Heart, PlayCircle, User } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 export const BottomNav = () => {
@@ -8,7 +8,7 @@ export const BottomNav = () => {
 
   const navItems = [
     { to: "/", icon: <Home size={22} />, label: t('home') },
-    { to: "/foryou", icon: <Flame size={22} />, label: t('forYou', 'For You') },
+    { to: "/tasks", icon: <Gift size={22} />, label: t('tasks', 'المهام') },
     { to: "/favorites", icon: <Heart size={22} />, label: t('favorites') },
     { to: "/history", icon: <PlayCircle size={22} />, label: t('history') },
     { to: "/profile", icon: <User size={22} />, label: t('profile') },

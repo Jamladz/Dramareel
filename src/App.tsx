@@ -20,7 +20,7 @@ import { Profile } from './pages/Profile';
 import { MovieDetails } from './pages/MovieDetails';
 import { Watch } from './pages/Watch';
 import { Admin } from './pages/Admin';
-import { ForYou } from './pages/ForYou';
+import { Tasks } from './pages/Tasks';
 import { WeeklyContest } from './pages/WeeklyContest';
 
 // Initialization
@@ -48,7 +48,7 @@ const AnimatedRoutes = () => {
         <Routes location={location}>
           <Route path="/" element={<Home />} />
           <Route path="/search" element={<Search />} />
-          <Route path="/foryou" element={<ForYou />} />
+          <Route path="/tasks" element={<Tasks />} />
           <Route path="/favorites" element={<Favorites />} />
           <Route path="/history" element={<History />} />
           <Route path="/profile" element={<Profile />} />

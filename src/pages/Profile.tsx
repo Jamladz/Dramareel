@@ -11,6 +11,7 @@ import { TonPaymentModal } from '../components/TonPaymentModal';
 import { TON_CONFIG } from '../config/tonConfig';
 import { showAdsgramAd, ADSGRAM_BLOCKS } from '../services/adsgramService';
 import { getCurrentUserId, getShareTelegramLink } from '../services/referralService';
+import { getUserData } from '../services/userService';
 
 declare global {
   interface Window {
@@ -543,122 +544,6 @@ export const Profile = () => {
             {isArabic ? 'افتح المتجر' : 'Open Shop'}
           </button>
         </div>
-
-        {/* Earn Coins Actions */}
-        <div className="w-full">
-          <h3 className="text-xs text-white/50 font-bold mb-3 uppercase tracking-wider text-start px-1">{t('earnCoins', 'Earn Coins')}</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <button 
-              onClick={() => setShowReferralModal(true)}
-              className="bg-[#1A1A1A] border border-amber-500/20 p-4 rounded-2xl flex items-center justify-between active:opacity-70 transition-opacity w-full"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center flex-none">
-                  <Users className="text-amber-400" size={16} />
-                </div>
-                <span className="font-bold text-sm text-white">{isArabic ? 'دعوة صديق جديد' : 'Invite Friend'}</span>
-              </div>
-              <span className="text-xs text-amber-400 font-black bg-amber-500/10 px-2 py-1 rounded-md" dir="ltr">+250</span>
-            </button>
-
-            
-            {/* AdsGram Reward Ad Task */}
-            <button 
-              onClick={handleRewardAd}
-              disabled={isRewardAdLoading || adsWatchedCount >= DAILY_AD_LIMIT}
-              className="bg-[#1A1A1A] border border-blue-500/20 p-4 rounded-2xl flex items-center justify-between active:opacity-70 transition-opacity w-full disabled:opacity-50"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center flex-none">
-                  <Tv className="text-blue-500" size={16} />
-                </div>
-                <div className="flex flex-col items-start">
-                  <span className="font-bold text-sm text-white">
-                    {isRewardAdLoading 
-                      ? (isArabic ? 'جاري التحميل...' : 'Loading...') 
-                      : (isArabic ? '🎬 شاهد إعلان واحصل على مكافأة' : '🎬 Watch Ad for Reward')}
-                  </span>
-                  <span className="text-[10px] text-white/50 font-mono mt-0.5">
-                    {adsWatchedCount}/{DAILY_AD_LIMIT} {isArabic ? 'يومياً' : 'Daily'}
-                  </span>
-                </div>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                 <span className="text-xs text-blue-500 font-black bg-blue-500/10 px-2 py-1 rounded-md" dir="ltr">+100</span>
-              </div>
-            </button>
-
-            <button 
-              onClick={handleWatchAd}
-              disabled={isWatchingAd}
-              className="bg-[#1A1A1A] border border-green-500/20 p-4 rounded-2xl flex items-center justify-between active:opacity-70 transition-opacity w-full disabled:opacity-50"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center flex-none">
-                  <Film className="text-green-500" size={16} />
-                </div>
-                <span className="font-bold text-sm text-white">
-                  {isWatchingAd 
-                    ? (isArabic ? 'جاري تحميل الإعلان...' : 'Loading Ad...') 
-                    : t('watchAd', 'Watch Ad')}
-                </span>
-              </div>
-              <span className="text-xs text-green-500 font-black bg-green-500/10 px-2 py-1 rounded-md" dir="ltr">+30</span>
-            </button>
-
-            <button 
-              onClick={() => {
-                if (hasJoinedTelegram) return;
-                window.open('https://t.me/dramareel2026', '_blank');
-                setTimeout(() => {
-                  useAppStore.getState().setJoinedTelegram();
-                  useAppStore.getState().addCoins(100, 'انضمام لقناة التلجرام');
-                }, 2000);
-              }}
-              disabled={hasJoinedTelegram}
-              className="bg-[#1A1A1A] border border-cyan-500/20 p-4 rounded-2xl flex items-center justify-between active:opacity-70 transition-opacity w-full disabled:opacity-50"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-cyan-500/10 flex items-center justify-center flex-none">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-cyan-400"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-                </div>
-                <span className="font-bold text-sm text-white">
-                  {hasJoinedTelegram 
-                    ? (isArabic ? 'مكتملة' : 'Completed') 
-                    : (isArabic ? 'انضم إلى قناتنا على تلجرام' : 'Join Telegram Channel')}
-                </span>
-              </div>
-              <span className="text-xs text-cyan-400 font-black bg-cyan-500/10 px-2 py-1 rounded-md" dir="ltr">+100</span>
-            </button>
-          </div>
-        </div>
-
-        
-            {/* AdsGram Reward Ad Task */}
-            <button 
-              onClick={handleRewardAd}
-              disabled={isRewardAdLoading || adsWatchedCount >= DAILY_AD_LIMIT}
-              className="bg-[#1A1A1A] border border-blue-500/20 p-4 rounded-2xl flex items-center justify-between active:opacity-70 transition-opacity w-full disabled:opacity-50"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-blue-500/10 flex items-center justify-center flex-none">
-                  <Tv className="text-blue-500" size={16} />
-                </div>
-                <div className="flex flex-col items-start">
-                  <span className="font-bold text-sm text-white">
-                    {isRewardAdLoading 
-                      ? (isArabic ? 'جاري التحميل...' : 'Loading...') 
-                      : (isArabic ? '🎬 شاهد إعلان واحصل على مكافأة' : '🎬 Watch Ad for Reward')}
-                  </span>
-                  <span className="text-[10px] text-white/50 font-mono mt-0.5">
-                    {adsWatchedCount}/{DAILY_AD_LIMIT} {isArabic ? 'يومياً' : 'Daily'}
-                  </span>
-                </div>
-              </div>
-              <div className="flex flex-col items-end gap-1">
-                 <span className="text-xs text-blue-500 font-black bg-blue-500/10 px-2 py-1 rounded-md" dir="ltr">+100</span>
-              </div>
-            </button>
 
         {/* TON Crypto Subscription Section */}
         <div className="w-full">
