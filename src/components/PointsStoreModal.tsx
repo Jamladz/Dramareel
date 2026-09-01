@@ -79,8 +79,9 @@ export const PointsStoreModal: React.FC<PointsStoreModalProps> = ({ isOpen, onCl
 
   React.useEffect(() => {
     const fetchUserData = async () => {
-      if (getCurrentUserId()) {
-        const data = await getUserData(getCurrentUserId());
+      const uid = getCurrentUserId();
+      if (uid) {
+        const data = await getUserData(uid);
         if (data) {
           const todayStr = new Date().toISOString().split('T')[0];
           if (data.dailyAdsDate === todayStr) {
@@ -88,6 +89,10 @@ export const PointsStoreModal: React.FC<PointsStoreModalProps> = ({ isOpen, onCl
           } else {
             setAdsWatchedCount(0);
           }
+        }
+        const hasJoined = await getTaskStatus(uid, 'join_channel');
+        if (hasJoined && !useAppStore.getState().hasJoinedTelegram) {
+          useAppStore.getState().setJoinedTelegram();
         }
       }
     };
@@ -444,12 +449,30 @@ export const PointsStoreModal: React.FC<PointsStoreModalProps> = ({ isOpen, onCl
                   </span>
                 ) : (
                   <button 
-                    onClick={() => {
+                    onClick={async () => {
                       window.open('https://t.me/dramareel2026', '_blank');
-                      setTimeout(() => {
-                        useAppStore.getState().setJoinedTelegram();
-                        useAppStore.getState().addCoins(100, 'انضمام لقناة التلجرام');
-                      }, 2000);
+                      setMsg({ text: isArabic ? 'جاري التحقق من الانضمام...' : 'Verifying join...', success: true });
+                      setTimeout(async () => {
+                        const uid = getCurrentUserId();
+                        if (uid) {
+                          const res = await completeTelegramTask(uid, 'join_channel', 100);
+                          if (res.success) {
+                            useAppStore.getState().setJoinedTelegram();
+                            useAppStore.getState().addCoins(100, 'انضمام لقناة التلجرام');
+                            setMsg({ text: isArabic ? '🎉 تم إكمال المهمة بنجاح!' : '🎉 Task completed!', success: true });
+                          } else {
+                            if (res.error === 'Task already completed') {
+                              useAppStore.getState().setJoinedTelegram();
+                              setMsg({ text: isArabic ? 'لقد أكملت هذه المهمة مسبقاً' : 'Task already completed', success: false });
+                            } else {
+                              setMsg({ text: isArabic ? 'حدث خطأ' : 'Error occurred', success: false });
+                            }
+                          }
+                        } else {
+                          useAppStore.getState().setJoinedTelegram();
+                          useAppStore.getState().addCoins(100, 'انضمام لقناة التلجرام');
+                        }
+                      }, 5000);
                     }}
                     className="bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] font-black px-4 py-1.5 rounded-xl transition-all active:scale-95 flex items-center gap-1"
                   >

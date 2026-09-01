@@ -1,11 +1,15 @@
 const fs = require('fs');
 let code = fs.readFileSync('src/store.ts', 'utf8');
 
-// Find where `getTotalCoinsEarned:` is and append `setCoinsFromServer: () => {},`
-code = code.replace(
-  "getTotalCoinsEarned: () => 0,",
-  "getTotalCoinsEarned: () => 0,\n    setCoinsFromServer: () => {},"
-);
-
-fs.writeFileSync('src/store.ts', code);
-console.log('patched store.ts');
+if (!code.includes('isHomeScreenModalOpen')) {
+  code = code.replace(
+    "interface AppState {",
+    "interface AppState {\n  isHomeScreenModalOpen: boolean;\n  openHomeScreenModal: () => void;\n  closeHomeScreenModal: () => void;"
+  );
+  code = code.replace(
+    "(set, get) => ({",
+    "(set, get) => ({\n      isHomeScreenModalOpen: false,\n      openHomeScreenModal: () => set({ isHomeScreenModalOpen: true }),\n      closeHomeScreenModal: () => set({ isHomeScreenModalOpen: false }),"
+  );
+  fs.writeFileSync('src/store.ts', code);
+  console.log('patched store.ts with isHomeScreenModalOpen');
+}

@@ -122,7 +122,7 @@ export async function claimMonetagReward(userId: string): Promise<{ success: boo
     if (!userId) return { success: false, error: 'Invalid data' };
     const userRef = doc(db, 'users', userId);
     
-    const REWARD = 100;
+    const REWARD = 30;
     const COOLDOWN_MS = 5 * 60 * 1000;
     const now = Date.now();
 
@@ -161,7 +161,7 @@ export async function claimSiteVisitReward(userId: string): Promise<{ success: b
     if (!userId) return { success: false, error: 'Invalid data' };
     const userRef = doc(db, 'users', userId);
     
-    const REWARD = 50;
+    const REWARD = 20;
     const COOLDOWN_MS = 5 * 60 * 1000;
     const now = Date.now();
 

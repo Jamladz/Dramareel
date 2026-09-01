@@ -3,6 +3,9 @@ import { persist } from 'zustand/middleware';
 import { Movie, UserProfile, WatchHistoryItem, CoinTransaction } from './types';
 
 interface AppState {
+  isHomeScreenModalOpen: boolean;
+  openHomeScreenModal: () => void;
+  closeHomeScreenModal: () => void;
   user: UserProfile | null;
   movies: Movie[];
   favorites: string[];
@@ -49,6 +52,9 @@ const STREAK_REWARDS = [50, 70, 100, 120, 150, 200, 300];
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
+      isHomeScreenModalOpen: false,
+      openHomeScreenModal: () => set({ isHomeScreenModalOpen: true }),
+      closeHomeScreenModal: () => set({ isHomeScreenModalOpen: false }),
       user: null,
       movies: [],
       favorites: [],

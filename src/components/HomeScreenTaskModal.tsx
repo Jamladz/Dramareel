@@ -10,7 +10,9 @@ import { useAppStore } from '../store';
 export const HomeScreenTaskModal: React.FC = () => {
   const { i18n } = useTranslation();
   const isArabic = i18n.language === 'ar';
-  const [isVisible, setIsVisible] = useState(false);
+  const { isHomeScreenModalOpen, openHomeScreenModal, closeHomeScreenModal } = useAppStore();
+  const isVisible = isHomeScreenModalOpen;
+  const setIsVisible = (val: boolean) => val ? openHomeScreenModal() : closeHomeScreenModal();
   const [addingToHome, setAddingToHome] = useState(false);
   const [msg, setMsg] = useState<{ text: string; success: boolean } | null>(null);
   const { addCoins } = useAppStore();

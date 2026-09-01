@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Gift, Tv, CheckCircle, Clock, Film, Users, Share2, Flame, Coins, Globe } from 'lucide-react';
 import { useAppStore } from '../store';
-import { getUserData, claimMonetagReward, claimSiteVisitReward, claimHomeScreenReward, claimRewardAd } from '../services/userService';
+import { getUserData, claimMonetagReward, claimSiteVisitReward, claimHomeScreenReward, claimRewardAd, getTaskStatus, completeTelegramTask } from '../services/userService';
 import { getCurrentUserId } from '../services/referralService';
 import { showAdsgramAd, ADSGRAM_BLOCKS } from '../services/adsgramService';
 import { ReferralHub } from '../components/ReferralHub';
@@ -76,6 +76,11 @@ export const Tasks = () => {
           } else {
             setAdsWatchedCount(0);
           }
+        }
+        
+        const hasJoined = await getTaskStatus(uid, 'join_channel');
+        if (hasJoined && !hasJoinedTelegram) {
+           setJoinedTelegram();
         }
       }
     };
@@ -170,9 +175,9 @@ export const Tasks = () => {
         try {
           const data = await claimMonetagReward(uid);
           if (data.success) {
-            useAppStore.getState().addCoins(100, isArabic ? 'إعلانات A' : 'Ads A');
+            useAppStore.getState().addCoins(30, isArabic ? 'إعلانات A' : 'Ads A');
             setLastMonetagClaim(data.lastClaim!);
-            alert(isArabic ? '🎉 حصلت على 100 نقطة' : '🎉 You got 100 points');
+            alert(isArabic ? '🎉 حصلت على 30 نقطة' : '🎉 You got 30 points');
           } else {
              if (data.remainingMs) {
                 setLastMonetagClaim(Date.now() - (MONETAG_COOLDOWN_MS - data.remainingMs));
@@ -197,36 +202,9 @@ export const Tasks = () => {
 
   
   
-  const handleHomeScreenAdd = async () => {
+  const handleHomeScreenAdd = () => {
     if (isHomeScreenLoading || isHomeScreenAdded) return;
-    setIsHomeScreenLoading(true);
-    
-    // Simulate Telegram Add to Home Screen UI
-    try {
-      if (window.Telegram?.WebApp?.addToHomeScreen) {
-        window.Telegram.WebApp.addToHomeScreen();
-      } else {
-        alert(isArabic ? 'يرجى إضافة التطبيق من إعدادات التلجرام' : 'Please add the app from Telegram settings');
-      }
-    } catch(e) {}
-    
-    // Give reward after a short delay
-    setTimeout(async () => {
-      const uid = getCurrentUserId();
-      if (!uid) {
-        setIsHomeScreenLoading(false);
-        return;
-      }
-      const data = await claimHomeScreenReward(uid);
-      if (data.success) {
-        useAppStore.getState().addCoins(100, isArabic ? 'إضافة للشاشة الرئيسية' : 'Add to Home Screen');
-        setIsHomeScreenAdded(true);
-        alert(isArabic ? '🎉 حصلت على 100 نقطة' : '🎉 You got 100 points');
-      } else {
-        alert(data.error || 'حدث خطأ');
-      }
-      setIsHomeScreenLoading(false);
-    }, 2000);
+    useAppStore.getState().openHomeScreenModal();
   };
 
   const handleSiteVisit = () => {
@@ -247,9 +225,9 @@ export const Tasks = () => {
       try {
         const data = await claimSiteVisitReward(uid);
         if (data.success) {
-          useAppStore.getState().addCoins(50, isArabic ? 'زيارة الموقع' : 'Visit Website');
+          useAppStore.getState().addCoins(20, isArabic ? 'زيارة الموقع' : 'Visit Website');
           setLastSiteVisitClaim(data.lastClaim!);
-          alert(isArabic ? '🎉 حصلت على 50 نقطة لزيارة الموقع' : '🎉 You got 50 points for visiting');
+          alert(isArabic ? '🎉 حصلت على 20 نقطة لزيارة الموقع' : '🎉 You got 20 points for visiting');
         } else {
            if (data.remainingMs) {
               setLastSiteVisitClaim(Date.now() - (SITE_VISIT_COOLDOWN_MS - data.remainingMs));
@@ -334,10 +312,26 @@ export const Tasks = () => {
   const handleJoinTelegram = () => {
     if (hasJoinedTelegram) return;
     window.open('https://t.me/dramareel2026', '_blank');
-    setTimeout(() => {
-      setJoinedTelegram();
-      addCoins(100, 'انضمام لقناة التلجرام');
-    }, 2000);
+    
+    setTimeout(async () => {
+      const uid = getCurrentUserId();
+      if (uid) {
+        const res = await completeTelegramTask(uid, 'join_channel', 100);
+        if (res.success) {
+          setJoinedTelegram();
+          addCoins(100, 'انضمام لقناة التلجرام');
+          alert(isArabic ? '🎉 تم إكمال المهمة بنجاح!' : '🎉 Task completed!');
+        } else {
+          if (res.error === 'Task already completed') {
+            setJoinedTelegram();
+            alert(isArabic ? 'لقد أكملت هذه المهمة مسبقاً' : 'Task already completed');
+          }
+        }
+      } else {
+         setJoinedTelegram();
+         addCoins(100, 'انضمام لقناة التلجرام');
+      }
+    }, 5000);
   };
 
   // Modern clean task item component
@@ -451,7 +445,7 @@ export const Tasks = () => {
             icon={<Tv size={20} />}
             title={isArabic ? 'شاهد إعلان A' : 'Watch Ad A'}
             subtitle={isArabic ? 'متاح كل 5 دقائق' : 'Available every 5 mins'}
-            reward="100"
+            reward="30"
             actionText={isArabic ? 'مطالبة' : 'Claim'}
             onAction={handleMonetagClaim}
             disabled={!!monetagTimeLeft}
@@ -500,7 +494,7 @@ export const Tasks = () => {
             icon={<Globe size={20} />}
             title={isArabic ? 'زيارة الموقع' : 'Visit Website'}
             subtitle={isArabic ? 'متاح كل 5 دقائق' : 'Available every 5 mins'}
-            reward="50"
+            reward="20"
             actionText={isArabic ? 'زيارة' : 'Visit'}
             onAction={handleSiteVisit}
             disabled={!!siteVisitTimeLeft}
