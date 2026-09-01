@@ -6,7 +6,7 @@ import { useAppStore } from '../store';
 import { ReferralHub } from './ReferralHub';
 import { showAdsgramAd, ADSGRAM_BLOCKS } from '../services/adsgramService';
 import { getCurrentUserId } from '../services/referralService';
-import { getTaskStatus, completeTelegramTask, getUserData } from '../services/userService';
+import { getTaskStatus, completeTelegramTask, getUserData, claimRewardAd } from '../services/userService';
 
 interface PointsStoreModalProps {
   isOpen: boolean;
@@ -73,6 +73,26 @@ export const PointsStoreModal: React.FC<PointsStoreModalProps> = ({ isOpen, onCl
   
   const [homeScreenStatus, setHomeScreenStatus] = useState<'loading' | 'available' | 'completed' | 'unsupported'>('loading');
   const [addingToHome, setAddingToHome] = useState(false);
+  const [isRewardAdLoading, setIsRewardAdLoading] = useState(false);
+  const [adsWatchedCount, setAdsWatchedCount] = useState(0);
+  const DAILY_AD_LIMIT = 20;
+
+  React.useEffect(() => {
+    const fetchUserData = async () => {
+      if (getCurrentUserId()) {
+        const data = await getUserData(getCurrentUserId());
+        if (data) {
+          const todayStr = new Date().toISOString().split('T')[0];
+          if (data.dailyAdsDate === todayStr) {
+            setAdsWatchedCount(data.adsWatchedToday || 0);
+          } else {
+            setAdsWatchedCount(0);
+          }
+        }
+      }
+    };
+    if (isOpen) fetchUserData();
+  }, [isOpen]);
 
   React.useEffect(() => {
     if (!isOpen) return;
@@ -137,7 +157,9 @@ export const PointsStoreModal: React.FC<PointsStoreModalProps> = ({ isOpen, onCl
     }
   };
 
-  if (!isOpen) return null;
+
+
+
 
   const selectedPkg = POINTS_VIP_PACKAGES.find(p => p.id === selectedPkgId) || POINTS_VIP_PACKAGES[0];
   const totalEarned = getTotalCoinsEarned();
@@ -191,26 +213,7 @@ export const PointsStoreModal: React.FC<PointsStoreModalProps> = ({ isOpen, onCl
   };
 
   
-  const [isRewardAdLoading, setIsRewardAdLoading] = useState(false);
-  const [adsWatchedCount, setAdsWatchedCount] = useState(0);
-  const DAILY_AD_LIMIT = 20;
 
-  React.useEffect(() => {
-    const fetchUserData = async () => {
-      if (getCurrentUserId()) {
-        const data = await getUserData(getCurrentUserId());
-        if (data) {
-          const todayStr = new Date().toISOString().split('T')[0];
-          if (data.dailyAdsDate === todayStr) {
-            setAdsWatchedCount(data.adsWatchedToday || 0);
-          } else {
-            setAdsWatchedCount(0);
-          }
-        }
-      }
-    };
-    if (isOpen) fetchUserData();
-  }, [isOpen]);
 
   const handleRewardAd = async () => {
     if (adsWatchedCount >= DAILY_AD_LIMIT) {
@@ -222,22 +225,16 @@ export const PointsStoreModal: React.FC<PointsStoreModalProps> = ({ isOpen, onCl
     try {
       const success = await showAdsgramAd(ADSGRAM_BLOCKS.REWARD_AD);
       if (success) {
-        // Wait 2-3 seconds for backend to process the callback
-        await new Promise(r => setTimeout(r, 2500));
-        
-        // Fetch new balance from backend
-        if (getCurrentUserId()) {
-          const data = await getUserData(getCurrentUserId());
-          if (data && data.coins > coins) {
-             useAppStore.getState().setCoinsFromServer(data.coins);
-             const todayStr = new Date().toISOString().split('T')[0];
-             if (data.dailyAdsDate === todayStr) {
-               setAdsWatchedCount(data.adsWatchedToday || 0);
-             }
-             setMsg({ text: isArabic ? 'تمت إضافة 100 نقطة 🎉' : 'Added 100 points 🎉', success: true });
-          } else {
-             setMsg({ text: isArabic ? 'يبدو أن تأكيد المكافأة قد تأخر. سيتم التحديث قريباً.' : 'Reward confirmation delayed. Will update soon.', success: false });
-          }
+        const uid = getCurrentUserId();
+        if (uid) {
+           const res = await claimRewardAd(uid);
+           if (res.success && res.newTotal !== undefined) {
+             useAppStore.getState().setCoinsFromServer(res.newTotal);
+             setAdsWatchedCount(res.adsWatchedToday || 0);
+             setMsg({ text: isArabic ? 'تمت إضافة 30 نقطة 🎉' : 'Added 30 points 🎉', success: true });
+           } else {
+             setMsg({ text: res.error || (isArabic ? 'حدث خطأ' : 'Error'), success: false });
+           }
         }
       }
     } catch (err) {
@@ -276,6 +273,8 @@ export const PointsStoreModal: React.FC<PointsStoreModalProps> = ({ isOpen, onCl
   };
 
   const formattedExpiry = premiumUntil ? new Date(premiumUntil).toLocaleDateString(isArabic ? 'ar-EG' : 'en-US') : null;
+
+  if (!isOpen) return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[500] bg-black/85 backdrop-blur-md flex items-end sm:items-center justify-center p-0 sm:p-4 overflow-hidden">

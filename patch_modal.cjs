@@ -1,63 +1,43 @@
 const fs = require('fs');
+let code = fs.readFileSync('src/components/PointsStoreModal.tsx', 'utf8');
 
-let modalCode = fs.readFileSync('src/components/PointsStoreModal.tsx', 'utf8');
+// Import
+code = code.replace(
+  "import { getTaskStatus, completeTelegramTask, getUserData } from '../services/userService';",
+  "import { getTaskStatus, completeTelegramTask, getUserData, claimRewardAd } from '../services/userService';"
+);
 
-const telegramTaskBlock = `
-            {/* Join Telegram Channel Task */}
-            <div className="mt-3 bg-gradient-to-r from-cyan-950/40 to-[#1A1815] border border-cyan-500/30 rounded-2xl p-4 flex items-center justify-between gap-3 relative overflow-hidden">
-              <div className="flex items-center gap-3 relative z-10">
-                <div className="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
-                </div>
-                <div>
-                  <h4 className="text-[13px] font-black text-white">
-                    {isArabic ? 'انضم إلى قناتنا على تلجرام' : 'Join our Telegram Channel'}
-                  </h4>
-                  <p className="text-[10px] text-cyan-200/70 font-medium leading-tight max-w-[180px]">
-                    {isArabic 
-                      ? 'احصل على 100 نقطة فور انضمامك لقناتنا' 
-                      : 'Get 100 points for joining our channel'}
-                  </p>
-                </div>
-              </div>
-              <div className="relative z-10 flex flex-col items-end gap-2 shrink-0">
-                <div className="text-[10px] font-bold text-cyan-400 bg-cyan-500/10 px-2 py-1 rounded-md">
-                  +100 {isArabic ? 'نقطة' : 'pts'}
-                </div>
-                {hasJoinedTelegram ? (
-                  <span className="text-[10px] font-black text-emerald-400 bg-emerald-500/20 px-2 py-1 rounded-md flex items-center gap-1">
-                    <CheckCircle2 size={12} /> {isArabic ? 'مكتملة' : 'Completed'}
-                  </span>
-                ) : (
-                  <button 
-                    onClick={() => {
-                      window.open('https://t.me/dramareel2026', '_blank');
-                      setTimeout(() => {
-                        useAppStore.getState().setJoinedTelegram();
-                        useAppStore.getState().addCoins(100, 'انضمام لقناة التلجرام');
-                      }, 2000);
-                    }}
-                    className="bg-cyan-600 hover:bg-cyan-500 text-white text-[11px] font-black px-4 py-1.5 rounded-xl transition-all active:scale-95 flex items-center gap-1"
-                  >
-                    {isArabic ? 'انضمام' : 'Join'}
-                  </button>
-                )}
-              </div>
-            </div>
-`;
+// handleRewardAd
+const oldHandleRewardAd = /const handleRewardAd = async \(\) => \{[\s\S]*?setIsRewardAdLoading\(false\);\s*\}\s*\};/;
+const newHandleRewardAd = `const handleRewardAd = async () => {
+    if (adsWatchedCount >= DAILY_AD_LIMIT) {
+      setMsg({ text: isArabic ? 'لقد وصلت إلى الحد اليومي، حاول غدًا.' : 'Daily limit reached, try tomorrow.', success: false });
+      return;
+    }
+    
+    setIsRewardAdLoading(true);
+    try {
+      const success = await showAdsgramAd(ADSGRAM_BLOCKS.REWARD_AD);
+      if (success) {
+        const uid = getCurrentUserId();
+        if (uid) {
+           const res = await claimRewardAd(uid);
+           if (res.success && res.newTotal !== undefined) {
+             useAppStore.getState().setCoinsFromServer(res.newTotal);
+             setAdsWatchedCount(res.adsWatchedToday || 0);
+             setMsg({ text: isArabic ? 'تمت إضافة 30 نقطة 🎉' : 'Added 30 points 🎉', success: true });
+           } else {
+             setMsg({ text: res.error || (isArabic ? 'حدث خطأ' : 'Error'), success: false });
+           }
+        }
+      }
+    } catch (err) {
+      console.error('Reward ad error:', err);
+    } finally {
+      setIsRewardAdLoading(false);
+    }
+  };`;
 
-// Extract state usage
-if (!modalCode.includes('hasJoinedTelegram')) {
-  modalCode = modalCode.replace(
-    /const {\s*coins,\s*buyPointsVipPass,\s*isVipActive,\s*streakDays,\s*lastDailyReward,\s*claimDailyReward\s*}/, 
-    'const { coins, buyPointsVipPass, isVipActive, streakDays, lastDailyReward, claimDailyReward, hasJoinedTelegram, setJoinedTelegram }'
-  );
-  
-  const searchString = '{/* Telegram Home Screen Task */}';
-  modalCode = modalCode.replace(searchString, telegramTaskBlock + '\n\n            ' + searchString);
-  
-  fs.writeFileSync('src/components/PointsStoreModal.tsx', modalCode);
-  console.log('patched modal');
-} else {
-  console.log('already patched');
-}
+code = code.replace(oldHandleRewardAd, newHandleRewardAd);
+fs.writeFileSync('src/components/PointsStoreModal.tsx', code);
+console.log('patched PointsStoreModal.tsx handleRewardAd');

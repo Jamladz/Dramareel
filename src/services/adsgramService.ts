@@ -15,7 +15,7 @@ export const ADSGRAM_BLOCK_ID = "45442";
 export const ADSGRAM_BLOCKS = {
   EPISODE_REWARD: 'int-39490', // Adsgram Ad for episode unlock
   DAILY_STREAK: 'int-39489',   // Adsgram Ad for Daily Attendance reward
-  WATCH_AD: 'int-39490',       // Old block
+  WATCH_AD: 'int-45443',       // Old block
   REWARD_AD: ADSGRAM_BLOCK_ID, // New Reward Block
 };
 

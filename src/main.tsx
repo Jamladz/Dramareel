@@ -1,3 +1,13 @@
+
+// Suppress Telegram CloudStorage warning
+const originalConsoleError = console.error;
+console.error = (...args) => {
+  if (args[0] && typeof args[0] === 'string' && args[0].includes('CloudStorage is not supported')) {
+    return;
+  }
+  originalConsoleError(...args);
+};
+
 import { StrictMode, useState, useEffect } from 'react';
 import { createRoot } from 'react-dom/client';
 import { TonConnectUIProvider, THEME } from '@tonconnect/ui-react';

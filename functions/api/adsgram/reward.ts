@@ -20,7 +20,7 @@ export async function onRequestGet(context) {
   const FIREBASE_API_KEY = env.FIREBASE_API_KEY || "AIzaSyB6jUo0n3twSTlo4UOS8EUP5LT5FgGVIP4";
   const PROJECT_ID = "gen-lang-client-0163667078";
   const DB_ID = "ai-studio-cineflow-1409744e-c8c4-4b03-b6b2-6884fbb3c81a";
-  const REWARD_POINTS = 100;
+  const REWARD_POINTS = 30;
   const DAILY_AD_LIMIT = 20;
 
   try {

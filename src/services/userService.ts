@@ -123,7 +123,7 @@ export async function claimMonetagReward(userId: string): Promise<{ success: boo
     const userRef = doc(db, 'users', userId);
     
     const REWARD = 100;
-    const COOLDOWN_MS = 24 * 60 * 60 * 1000;
+    const COOLDOWN_MS = 5 * 60 * 1000;
     const now = Date.now();
 
     return await runTransaction(db, async (transaction) => {
@@ -162,7 +162,7 @@ export async function claimSiteVisitReward(userId: string): Promise<{ success: b
     const userRef = doc(db, 'users', userId);
     
     const REWARD = 50;
-    const COOLDOWN_MS = 24 * 60 * 60 * 1000;
+    const COOLDOWN_MS = 5 * 60 * 1000;
     const now = Date.now();
 
     return await runTransaction(db, async (transaction) => {
@@ -191,6 +191,84 @@ export async function claimSiteVisitReward(userId: string): Promise<{ success: b
     });
   } catch (error: any) {
     console.error('Error claiming site visit:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+export async function claimHomeScreenReward(userId: string): Promise<{ success: boolean; newTotal?: number; error?: string }> {
+  try {
+    if (!userId) return { success: false, error: 'Invalid data' };
+    const userRef = doc(db, 'users', userId);
+    const REWARD = 100;
+
+    return await runTransaction(db, async (transaction) => {
+      const userSnap = await transaction.get(userRef);
+      if (!userSnap.exists()) {
+        throw new Error('User not found');
+      }
+      const data = userSnap.data();
+      if (data.homeScreenAdded) {
+        return { success: false, error: 'Already added' };
+      }
+
+      const currentCoins = data.coins || 0;
+      const newTotal = currentCoins + REWARD;
+      
+      transaction.update(userRef, { 
+        coins: newTotal,
+        homeScreenAdded: true
+      });
+
+      return { success: true, newTotal };
+    });
+  } catch (error: any) {
+    console.error('Error claiming home screen reward:', error);
+    return { success: false, error: error.message };
+  }
+}
+
+
+export async function claimRewardAd(userId: string): Promise<{ success: boolean; newTotal?: number; adsWatchedToday?: number; error?: string }> {
+  try {
+    if (!userId) return { success: false, error: 'Invalid data' };
+    const userRef = doc(db, 'users', userId);
+    const REWARD = 30;
+    const DAILY_LIMIT = 20;
+
+    return await runTransaction(db, async (transaction) => {
+      const userSnap = await transaction.get(userRef);
+      if (!userSnap.exists()) {
+        throw new Error('User not found');
+      }
+      const data = userSnap.data();
+      const currentCoins = data.coins || 0;
+      
+      const todayStr = new Date().toISOString().split('T')[0];
+      let adsWatchedToday = data.adsWatchedToday || 0;
+      let dailyAdsDate = data.dailyAdsDate || '';
+
+      if (dailyAdsDate !== todayStr) {
+        adsWatchedToday = 0;
+        dailyAdsDate = todayStr;
+      }
+
+      if (adsWatchedToday >= DAILY_LIMIT) {
+         return { success: false, error: 'Daily limit reached' };
+      }
+
+      const newTotal = currentCoins + REWARD;
+      adsWatchedToday += 1;
+      
+      transaction.update(userRef, { 
+        coins: newTotal,
+        adsWatchedToday: adsWatchedToday,
+        dailyAdsDate: dailyAdsDate
+      });
+
+      return { success: true, newTotal, adsWatchedToday };
+    });
+  } catch (error: any) {
+    console.error('Error claiming reward ad:', error);
     return { success: false, error: error.message };
   }
 }

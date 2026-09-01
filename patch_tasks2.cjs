@@ -1,109 +1,42 @@
 const fs = require('fs');
 let code = fs.readFileSync('src/pages/Tasks.tsx', 'utf8');
 
+// Import
 code = code.replace(
-  "import { getUserData } from '../services/userService';",
-  "import { getUserData, claimMonetagReward, claimSiteVisitReward } from '../services/userService';"
+  "claimHomeScreenReward } from '../services/userService';",
+  "claimHomeScreenReward, claimRewardAd } from '../services/userService';"
 );
 
-// Monetag fetch
-const oldMonetagFetch = `
-        try {
-          const res = await fetch('/api/monetag/claim', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userid: uid })
-          });
-          const data = await res.json();
-          if (data.success) {
-            useAppStore.getState().setCoinsFromServer(data.newTotal);
-            setLastMonetagClaim(data.lastClaim);
-            alert(isArabic ? '🎉 حصلت على 100 نقطة' : '🎉 You got 100 points');
-          } else {
-             if (data.remainingMs) {
-                setLastMonetagClaim(Date.now() - (MONETAG_COOLDOWN_MS - data.remainingMs));
-             }
-             alert(isArabic ? 'لم يحن وقت المكافأة بعد' : 'Reward not ready yet');
-          }
-        } catch (e) {
-          console.error("Claim error:", e);
-        } finally {
-          setIsMonetagLoading(false);
-        }
-`;
-
-const newMonetagFetch = `
-        try {
-          const data = await claimMonetagReward(uid);
-          if (data.success) {
-            useAppStore.getState().setCoinsFromServer(data.newTotal!);
-            setLastMonetagClaim(data.lastClaim!);
-            alert(isArabic ? '🎉 حصلت على 100 نقطة' : '🎉 You got 100 points');
-          } else {
-             if (data.remainingMs) {
-                setLastMonetagClaim(Date.now() - (MONETAG_COOLDOWN_MS - data.remainingMs));
-             }
-             alert(isArabic ? 'لم يحن وقت المكافأة بعد' : 'Reward not ready yet');
-          }
-        } catch (e) {
-          console.error("Claim error:", e);
-        } finally {
-          setIsMonetagLoading(false);
-        }
-`;
-
-code = code.replace(oldMonetagFetch, newMonetagFetch);
-
-// Site Visit fetch
-const oldVisitFetch = `
-      try {
-        const res = await fetch('/api/visit/claim', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userid: uid })
-        });
-        const data = await res.json();
-        
-        if (data.success) {
-          useAppStore.getState().setCoinsFromServer(data.newTotal);
-          setLastSiteVisitClaim(data.lastClaim);
-          alert(isArabic ? '🎉 حصلت على 50 نقطة لزيارة الموقع' : '🎉 You got 50 points for visiting');
-        } else {
-           if (data.remainingMs) {
-              setLastSiteVisitClaim(Date.now() - (SITE_VISIT_COOLDOWN_MS - data.remainingMs));
+// handleRewardAd
+const oldHandleRewardAd = /const handleRewardAd = async \(\) => \{[\s\S]*?setIsRewardAdLoading\(false\);\s*\}\s*\};/;
+const newHandleRewardAd = `const handleRewardAd = async () => {
+    if (adsWatchedCount >= DAILY_AD_LIMIT) {
+      alert(isArabic ? 'لقد وصلت إلى الحد اليومي، حاول غدًا.' : 'Daily limit reached, try tomorrow.');
+      return;
+    }
+    setIsRewardAdLoading(true);
+    try {
+      const success = await showAdsgramAd(ADSGRAM_BLOCKS.REWARD_AD);
+      if (success) {
+        const uid = getCurrentUserId();
+        if (uid) {
+           const res = await claimRewardAd(uid);
+           if (res.success && res.newTotal !== undefined) {
+             useAppStore.getState().setCoinsFromServer(res.newTotal);
+             setAdsWatchedCount(res.adsWatchedToday || 0);
+             alert(isArabic ? 'تمت إضافة 30 نقطة 🎉' : 'Added 30 points 🎉');
+           } else {
+             alert(res.error || (isArabic ? 'حدث خطأ' : 'Error'));
            }
-           alert(isArabic ? 'لم يحن وقت المكافأة بعد' : 'Reward not ready yet');
         }
-      } catch (e) {
-        console.error("Site visit claim error:", e);
-        alert(isArabic ? 'حدث خطأ. يرجى المحاولة لاحقاً.' : 'Error occurred. Please try again later.');
-      } finally {
-        setIsSiteVisitLoading(false);
       }
-`;
+    } catch (err) {
+      console.error('Reward ad error:', err);
+    } finally {
+      setIsRewardAdLoading(false);
+    }
+  };`;
 
-const newVisitFetch = `
-      try {
-        const data = await claimSiteVisitReward(uid);
-        if (data.success) {
-          useAppStore.getState().setCoinsFromServer(data.newTotal!);
-          setLastSiteVisitClaim(data.lastClaim!);
-          alert(isArabic ? '🎉 حصلت على 50 نقطة لزيارة الموقع' : '🎉 You got 50 points for visiting');
-        } else {
-           if (data.remainingMs) {
-              setLastSiteVisitClaim(Date.now() - (SITE_VISIT_COOLDOWN_MS - data.remainingMs));
-           }
-           alert(isArabic ? 'لم يحن وقت المكافأة بعد' : 'Reward not ready yet');
-        }
-      } catch (e) {
-        console.error("Site visit claim error:", e);
-        alert(isArabic ? 'حدث خطأ. يرجى المحاولة لاحقاً.' : 'Error occurred. Please try again later.');
-      } finally {
-        setIsSiteVisitLoading(false);
-      }
-`;
-
-code = code.replace(oldVisitFetch, newVisitFetch);
-
+code = code.replace(oldHandleRewardAd, newHandleRewardAd);
 fs.writeFileSync('src/pages/Tasks.tsx', code);
-console.log('patched Tasks.tsx APIs');
+console.log('patched Tasks.tsx handleRewardAd');

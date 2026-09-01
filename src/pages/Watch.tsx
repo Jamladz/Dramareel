@@ -172,9 +172,7 @@ export const Watch = () => {
   const observer = useRef<IntersectionObserver | null>(null);
 
   useEffect(() => {
-    if (!movie) {
-      navigate('/');
-    }
+    
   }, [movie, navigate]);
 
   // Scroll to active episode on initial load or drawer click
@@ -238,6 +236,7 @@ export const Watch = () => {
       if (observer.current) observer.current.disconnect();
     };
   }, [episodes]);
+
 
   if (!movie || episodes.length === 0) return null;
 

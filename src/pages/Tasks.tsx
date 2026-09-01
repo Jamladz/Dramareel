@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Gift, Tv, CheckCircle, Clock, Film, Users, Share2, Flame, Coins, Globe } from 'lucide-react';
 import { useAppStore } from '../store';
-import { getUserData, claimMonetagReward, claimSiteVisitReward } from '../services/userService';
+import { getUserData, claimMonetagReward, claimSiteVisitReward, claimHomeScreenReward, claimRewardAd } from '../services/userService';
 import { getCurrentUserId } from '../services/referralService';
 import { showAdsgramAd, ADSGRAM_BLOCKS } from '../services/adsgramService';
 import { ReferralHub } from '../components/ReferralHub';
@@ -28,7 +28,7 @@ export const Tasks = () => {
   const [isMonetagLoading, setIsMonetagLoading] = useState(false);
   const [lastMonetagClaim, setLastMonetagClaim] = useState<number>(0);
   const [monetagTimeLeft, setMonetagTimeLeft] = useState<string | null>(null);
-  const MONETAG_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+  const MONETAG_COOLDOWN_MS = 5 * 60 * 1000;
 
   // Adsgram Daily Reward Ad State (20/day)
   const [isRewardAdLoading, setIsRewardAdLoading] = useState(false);
@@ -38,9 +38,11 @@ export const Tasks = () => {
   
   // Site Visit State
   const [isSiteVisitLoading, setIsSiteVisitLoading] = useState(false);
+  const [isHomeScreenLoading, setIsHomeScreenLoading] = useState(false);
+  const [isHomeScreenAdded, setIsHomeScreenAdded] = useState(false);
   const [lastSiteVisitClaim, setLastSiteVisitClaim] = useState<number>(0);
   const [siteVisitTimeLeft, setSiteVisitTimeLeft] = useState<string | null>(null);
-  const SITE_VISIT_COOLDOWN_MS = 24 * 60 * 60 * 1000;
+  const SITE_VISIT_COOLDOWN_MS = 5 * 60 * 1000;
 
   // Adsgram general Watch Ad State
   const [isWatchingAd, setIsWatchingAd] = useState(false);
@@ -64,6 +66,9 @@ export const Tasks = () => {
           }
           if (data.lastSiteVisitClaim) {
             setLastSiteVisitClaim(Number(data.lastSiteVisitClaim) || 0);
+          }
+          if (data.homeScreenAdded) {
+            setIsHomeScreenAdded(true);
           }
           const todayStr = new Date().toISOString().split('T')[0];
           if (data.dailyAdsDate === todayStr) {
@@ -191,6 +196,39 @@ export const Tasks = () => {
   };
 
   
+  
+  const handleHomeScreenAdd = async () => {
+    if (isHomeScreenLoading || isHomeScreenAdded) return;
+    setIsHomeScreenLoading(true);
+    
+    // Simulate Telegram Add to Home Screen UI
+    try {
+      if (window.Telegram?.WebApp?.addToHomeScreen) {
+        window.Telegram.WebApp.addToHomeScreen();
+      } else {
+        alert(isArabic ? 'يرجى إضافة التطبيق من إعدادات التلجرام' : 'Please add the app from Telegram settings');
+      }
+    } catch(e) {}
+    
+    // Give reward after a short delay
+    setTimeout(async () => {
+      const uid = getCurrentUserId();
+      if (!uid) {
+        setIsHomeScreenLoading(false);
+        return;
+      }
+      const data = await claimHomeScreenReward(uid);
+      if (data.success) {
+        useAppStore.getState().addCoins(100, isArabic ? 'إضافة للشاشة الرئيسية' : 'Add to Home Screen');
+        setIsHomeScreenAdded(true);
+        alert(isArabic ? '🎉 حصلت على 100 نقطة' : '🎉 You got 100 points');
+      } else {
+        alert(data.error || 'حدث خطأ');
+      }
+      setIsHomeScreenLoading(false);
+    }, 2000);
+  };
+
   const handleSiteVisit = () => {
     if (isSiteVisitLoading || siteVisitTimeLeft) return;
     setIsSiteVisitLoading(true);
@@ -236,20 +274,16 @@ export const Tasks = () => {
     try {
       const success = await showAdsgramAd(ADSGRAM_BLOCKS.REWARD_AD);
       if (success) {
-        await new Promise(r => setTimeout(r, 2500));
         const uid = getCurrentUserId();
         if (uid) {
-          const data = await getUserData(uid);
-          if (data && data.coins > coins) {
-             useAppStore.getState().setCoinsFromServer(data.coins);
-             const todayStr = new Date().toISOString().split('T')[0];
-             if (data.dailyAdsDate === todayStr) {
-               setAdsWatchedCount(data.adsWatchedToday || 0);
-             }
-             alert(isArabic ? 'تمت إضافة 100 نقطة 🎉' : 'Added 100 points 🎉');
-          } else {
-             alert(isArabic ? 'يبدو أن تأكيد المكافأة قد تأخر. سيتم التحديث قريباً.' : 'Reward confirmation delayed. Will update soon.');
-          }
+           const res = await claimRewardAd(uid);
+           if (res.success && res.newTotal !== undefined) {
+             useAppStore.getState().setCoinsFromServer(res.newTotal);
+             setAdsWatchedCount(res.adsWatchedToday || 0);
+             alert(isArabic ? 'تمت إضافة 30 نقطة 🎉' : 'Added 30 points 🎉');
+           } else {
+             alert(res.error || (isArabic ? 'حدث خطأ' : 'Error'));
+           }
         }
       }
     } catch (err) {
@@ -416,7 +450,7 @@ export const Tasks = () => {
           <TaskItem 
             icon={<Tv size={20} />}
             title={isArabic ? 'شاهد إعلان A' : 'Watch Ad A'}
-            subtitle={isArabic ? 'متاح مرة كل 24 ساعة' : 'Available once every 24h'}
+            subtitle={isArabic ? 'متاح كل 5 دقائق' : 'Available every 5 mins'}
             reward="100"
             actionText={isArabic ? 'مطالبة' : 'Claim'}
             onAction={handleMonetagClaim}
@@ -436,7 +470,7 @@ export const Tasks = () => {
             icon={<Tv size={20} />}
             title={isArabic ? 'مكافأة إعلان B' : 'Ad B Reward'}
             subtitle={`${adsWatchedCount}/${DAILY_AD_LIMIT} ${isArabic ? 'يومياً' : 'Daily'}`}
-            reward="100"
+            reward="30"
             actionText={isArabic ? 'مشاهدة' : 'Watch'}
             onAction={handleRewardAd}
             disabled={adsWatchedCount >= DAILY_AD_LIMIT}
@@ -444,17 +478,7 @@ export const Tasks = () => {
             completed={adsWatchedCount >= DAILY_AD_LIMIT}
           />
 
-          <TaskItem 
-            icon={<Film size={20} />}
-            title={isArabic ? 'مشاهدة إعلان سريع' : 'Watch Quick Ad'}
-            subtitle={isArabic ? 'متاح باستمرار' : 'Always available'}
-            reward="30"
-            actionText={isArabic ? 'مشاهدة' : 'Watch'}
-            onAction={handleWatchAd}
-            disabled={isWatchingAd}
-            loading={isWatchingAd}
-            completed={false}
-          />
+          
         </div>
 
         <div className="space-y-3 pt-2">
@@ -462,9 +486,20 @@ export const Tasks = () => {
             {isArabic ? 'مهام أخرى' : 'Other Tasks'}
           </h3>
           <TaskItem 
+            icon={<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>}
+            title={isArabic ? 'إضافة إلى الشاشة الرئيسية' : 'Add to Home Screen'}
+            subtitle={isArabic ? 'مكافأة لمرة واحدة' : 'One-time reward'}
+            reward="100"
+            actionText={isArabic ? 'إضافة' : 'Add'}
+            onAction={handleHomeScreenAdd}
+            disabled={isHomeScreenAdded}
+            loading={isHomeScreenLoading}
+            completed={isHomeScreenAdded}
+          />
+          <TaskItem 
             icon={<Globe size={20} />}
             title={isArabic ? 'زيارة الموقع' : 'Visit Website'}
-            subtitle={isArabic ? 'متاح مرة كل 24 ساعة' : 'Available once every 24h'}
+            subtitle={isArabic ? 'متاح كل 5 دقائق' : 'Available every 5 mins'}
             reward="50"
             actionText={isArabic ? 'زيارة' : 'Visit'}
             onAction={handleSiteVisit}
