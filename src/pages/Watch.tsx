@@ -310,7 +310,8 @@ export const Watch = () => {
         style={{ scrollBehavior: 'smooth' }}
       >
         {episodes.map((ep, idx) => {
-          const isLocked = !isPaidVip() && !isPointsVip() && ep.episodeNumber > 6 && !unlockedEpisodes.includes(ep.id);
+          const isLong = ep.isLongEpisode || (ep.duration && ep.duration >= 1200);
+          const isLocked = !isPaidVip() && !isPointsVip() && ep.episodeNumber > 6 && !unlockedEpisodes.includes(ep.id) && !isLong;
           const isCurrentActive = activeEpisodeId === ep.id;
           const activeIndex = episodes.findIndex(e => e.id === activeEpisodeId);
           const isNearActive = Math.abs(idx - activeIndex) <= 1;
@@ -594,7 +595,8 @@ export const Watch = () => {
 
             <div className="grid grid-cols-4 gap-2.5 overflow-y-auto pr-1 pb-4">
               {episodes.map((ep) => {
-                const isLocked = !isVipActive() && ep.episodeNumber > 6 && !unlockedEpisodes.includes(ep.id);
+                const isLong = ep.isLongEpisode || (ep.duration && ep.duration >= 1200);
+                const isLocked = !isVipActive() && ep.episodeNumber > 6 && !unlockedEpisodes.includes(ep.id) && !isLong;
                 const isSelected = activeEpisodeId === ep.id;
 
                 return (
