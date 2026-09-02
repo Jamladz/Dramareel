@@ -346,6 +346,21 @@ export const Admin = () => {
                 💡 يدعم جميع الصيغ والروابط والـ Embed: Dailymotion (geo.dailymotion), YouTube, Vimeo, MP4, M3U8, Google Drive.
               </p>
             </div>
+
+            {/* Long Episode Checkbox */}
+            <div className="flex items-center gap-3 bg-[#161616] border border-white/10 p-3.5 rounded-2xl">
+              <input
+                type="checkbox"
+                id="isLongEpisode"
+                checked={newEpisode.isLongEpisode || false}
+                onChange={e => setNewEpisode({...newEpisode, isLongEpisode: e.target.checked})}
+                className="w-4 h-4 rounded bg-[#111] border-white/20 text-blue-500 focus:ring-blue-500/50 focus:ring-offset-0"
+              />
+              <label htmlFor="isLongEpisode" className="text-xs font-bold text-white/90">
+                تفعيل الإعلانات كل 5 دقائق (للحلقات الطويلة أكثر من 20 دقيقة)
+              </label>
+            </div>
+
             <div className="flex gap-2">
               <button onClick={handleAddEpisode} className="flex-1 bg-blue-600 p-3 rounded-xl font-bold uppercase tracking-widest text-xs">
                 {editingEpisodeId ? t('saveChanges', 'Save Changes') : t('saveEpisode', 'Save Episode')}

@@ -4,6 +4,7 @@ export interface Episode {
   title: string;
   videoUrl: string;
   duration?: number;
+  isLongEpisode?: boolean;
 }
 
 export interface Movie {

@@ -1,7 +1,8 @@
+import { motion, AnimatePresence } from 'motion/react';
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Heart, Share2, MessageCircle, Bookmark, Layers, Gift, Plus, Zap, Sparkles, Crown, Tv, Loader2 } from 'lucide-react';
+import { ArrowLeft, Play, Heart, Share2, MessageCircle, Bookmark, Layers, Gift, Plus, Zap, Sparkles, Crown, Tv, Loader2 } from 'lucide-react';
 import { AnimatedViews } from '../components/AnimatedViews';
 import { useAppStore } from '../store';
 import { ReelPlayer } from '../components/ReelPlayer';
@@ -33,6 +34,10 @@ export const Watch = () => {
   const [showPointsStoreModal, setShowPointsStoreModal] = useState(false);
   const [isAdLoading, setIsAdLoading] = useState(false);
   const [watchedVideosCount, setWatchedVideosCount] = useState(0);
+  const [isLongEpisodeAdPlaying, setIsLongEpisodeAdPlaying] = useState(false);
+  const lastAdMilestoneRef = useRef<number>(0);
+
+
 
   const handleUnlockWithAdsgram = async (epId: string) => {
     const currentEp = episodes.find(e => e.id === epId);
@@ -138,6 +143,10 @@ export const Watch = () => {
   }, [movie]);
 
   const [activeEpisodeId, setActiveEpisodeId] = useState<string>('');
+
+  useEffect(() => {
+    lastAdMilestoneRef.current = 0;
+  }, [activeEpisodeId]);
   const [autoPlayingNext, setAutoPlayingNext] = useState<{ id: string; nextEpNum: number } | null>(null);
 
   useEffect(() => {
@@ -312,6 +321,46 @@ export const Watch = () => {
               data-episode-id={ep.id}
               className="reel-item relative w-full h-full snap-start snap-always touch-pan-y"
             >
+                {/* 5-Min Ad Prompt for Long Episodes */}
+                <AnimatePresence>
+                  {isCurrentActive && isLongEpisodeAdPlaying && (
+                    <motion.div 
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      exit={{ opacity: 0 }}
+                      className="absolute inset-0 z-[100] bg-black/80 backdrop-blur-md flex flex-col items-center justify-center p-6"
+                    >
+                      <div className="bg-[#111] border border-white/10 p-6 rounded-3xl max-w-sm w-full text-center shadow-2xl flex flex-col items-center">
+                        <div className="w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-500 flex items-center justify-center mb-4">
+                          <Tv size={32} />
+                        </div>
+                        <h3 className="text-xl font-black text-white mb-2">
+                          {isArabic ? 'فاصل إعلاني' : 'Ad Break'}
+                        </h3>
+                        <p className="text-sm text-white/60 mb-6 leading-relaxed">
+                          {isArabic 
+                            ? 'لمواصلة المشاهدة مجاناً، يرجى مشاهدة إعلان قصير' 
+                            : 'To continue watching for free, please watch a short ad'}
+                        </p>
+                        <button
+                          disabled={isAdLoading}
+                          onClick={async () => {
+                            setIsAdLoading(true);
+                            const success = await showAdsgramAd(ADSGRAM_BLOCKS.LONG_EPISODE_AD);
+                            setIsAdLoading(false);
+                            // Even if Adsgram is skipped/fails, we let them continue for this milestone
+                            setIsLongEpisodeAdPlaying(false);
+                          }}
+                          className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 text-white font-black active:scale-95 transition-all shadow-lg shadow-red-600/20 flex items-center justify-center gap-2"
+                        >
+                          {isAdLoading ? <Loader2 size={20} className="animate-spin" /> : <Play size={20} />}
+                          <span>{isArabic ? 'شاهد الإعلان وأكمل' : 'Watch Ad & Continue'}</span>
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
               {isLocked ? (
                 <div className="absolute inset-0 bg-[#0A0A0A] flex flex-col items-center justify-center z-10 px-6 text-center">
                   <div className="w-20 h-20 bg-amber-500/10 rounded-3xl flex items-center justify-center mb-4 border border-amber-500/30 shadow-lg shadow-amber-500/20">
@@ -351,9 +400,19 @@ export const Watch = () => {
                 <ReelPlayer 
                   url={ep.videoUrl} 
                   isActive={isCurrentActive}
+                  forcePause={isCurrentActive && isLongEpisodeAdPlaying}
                   shouldLoad={isNearActive}
                   duration={ep.duration}
                   isUIVisible={areControlsVisible}
+                  onProgress={(time) => {
+                    if (isCurrentActive && (ep.isLongEpisode || (ep.duration && ep.duration >= 1200)) && !isPaidVip() && !isPointsVip()) {
+                      const currentMilestone = Math.floor(time / 300);
+                      if (currentMilestone > 0 && currentMilestone > lastAdMilestoneRef.current && !isLongEpisodeAdPlaying) {
+                        lastAdMilestoneRef.current = currentMilestone;
+                        setIsLongEpisodeAdPlaying(true);
+                      }
+                    }
+                  }}
                   onComplete={() => {
                     useAppStore.getState().completeEpisode(ep.id);
 

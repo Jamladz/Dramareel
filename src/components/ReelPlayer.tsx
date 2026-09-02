@@ -6,6 +6,7 @@ import { parseVideoUrl } from '../utils/videoUtils';
 
 interface ReelPlayerProps {
   url: string;
+  forcePause?: boolean;
   isActive: boolean;
   shouldLoad?: boolean; // whether to load the video source (for lazy loading)
   duration?: number; // duration in seconds set by admin
@@ -14,7 +15,7 @@ interface ReelPlayerProps {
   isUIVisible?: boolean;
 }
 
-export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, shouldLoad = true, duration, onProgress, onComplete, isUIVisible }) => {
+export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, shouldLoad = true, duration, onProgress, onComplete, isUIVisible, forcePause }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const isActiveRef = useRef(isActive);
   const onCompleteCalledRef = useRef(false);
@@ -48,6 +49,47 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, shouldLoa
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
+
+  // Handle force pause
+  useEffect(() => {
+    if (forcePause && videoRef.current) {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    }
+  }, [forcePause]);
+
+  // Fallback timer for embeds to report progress
+  useEffect(() => {
+    if (!parsed.embedUrl) return;
+    if (!isActive) {
+      setWatchedSeconds(0);
+      return;
+    }
+    if (forcePause) return;
+
+    const interval = setInterval(() => {
+      setWatchedSeconds(prev => {
+        const next = prev + 1;
+        if (onProgress) onProgress(next);
+        
+        // Pseudo-complete for embeds based on admin duration
+        if (duration && next >= duration) {
+          if (!onCompleteCalledRef.current && onComplete) {
+            onCompleteCalledRef.current = true;
+            onComplete();
+          }
+        }
+        
+        // Pseudo-progress bar update
+        if (duration) {
+          setProgress(Math.min(100, (next / duration) * 100));
+        }
+
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [parsed.embedUrl, isActive, forcePause, duration, onProgress, onComplete]);
 
   // Synchronously update isActiveRef & reset state on inactive
   useEffect(() => {
@@ -206,6 +248,7 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, shouldLoa
   }, [isActive, onComplete]);
 
   const togglePlay = () => {
+    if (forcePause) return;
     const video = videoRef.current;
     if (!video) return;
 
