@@ -17,7 +17,7 @@ export const ADSGRAM_BLOCKS = {
   DAILY_STREAK: 'int-39489',   // Adsgram Ad for Daily Attendance reward
   WATCH_AD: 'int-45443',       // Old block
   REWARD_AD: ADSGRAM_BLOCK_ID, // New Reward Block
-  LONG_EPISODE_AD: 'reward-45442',
+  LONG_EPISODE_AD: '45442',
 };
 
 export async function showAdsgramAd(blockId: string): Promise<boolean> {
