@@ -440,7 +440,7 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, shouldLoa
       onPointerLeave={handlePointerCancel}
       onPointerCancel={handlePointerCancel}
     >
-      <video
+      <video preload="auto"
         ref={videoRef}
         className="w-full h-full object-cover"
         muted={isMuted}

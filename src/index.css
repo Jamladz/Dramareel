@@ -63,3 +63,11 @@ tc-root button {
   -ms-overflow-style: none;  /* IE and Edge */
   scrollbar-width: none;  /* Firefox */
 }
+@keyframes countdown {
+  from {
+    stroke-dashoffset: 238;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}

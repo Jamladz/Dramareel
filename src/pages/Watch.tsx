@@ -147,7 +147,7 @@ export const Watch = () => {
   useEffect(() => {
     lastAdMilestoneRef.current = 0;
   }, [activeEpisodeId]);
-  const [autoPlayingNext, setAutoPlayingNext] = useState<{ id: string; nextEpNum: number } | null>(null);
+  const [autoPlayingNext, setAutoPlayingNext] = useState<{ id: string; nextEpNum: number; nextEpId: string } | null>(null);
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -432,11 +432,16 @@ export const Watch = () => {
                       if (nextLocked) {
                         setShowUnlockModal(nextEp.id);
                       } else {
-                        setAutoPlayingNext({ id: ep.id, nextEpNum: nextEp.episodeNumber });
+                        setAutoPlayingNext({ id: ep.id, nextEpNum: nextEp.episodeNumber, nextEpId: nextEp.id });
+                        
                         setTimeout(() => {
-                          scrollToEpisode(nextEp.id);
-                          setTimeout(() => setAutoPlayingNext(null), 500);
-                        }, 2500);
+                          setAutoPlayingNext(prev => {
+                            if (prev && prev.id === ep.id) {
+                              scrollToEpisode(nextEp.id);
+                            }
+                            return null;
+                          });
+                        }, 4000);
                       }
                     }
                   }}
@@ -444,25 +449,45 @@ export const Watch = () => {
               )}
 
               {/* Auto Play Next Overlay */}
-              {autoPlayingNext?.id === ep.id && (
-                <div className="absolute inset-0 z-40 flex flex-col items-center justify-center bg-black/70 backdrop-blur-md animate-in fade-in duration-300">
-                  <div className="w-20 h-20 bg-black/50 rounded-full flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(220,38,38,0.3)] border border-white/10">
-                    <Loader2 size={40} className="animate-spin text-red-600" />
-    
-              </div>
-                  <h3 className="text-2xl font-black text-white drop-shadow-lg mb-2">
-                    {isArabic ? 'الحلقة القادمة...' : 'Up Next...'}
-                  </h3>
-                  <div className="bg-red-600/20 border border-red-600/50 px-5 py-1.5 rounded-full backdrop-blur-md">
-                    <p className="text-red-400 font-bold text-sm">
-                      {isArabic ? `تشغيل حلقة ${autoPlayingNext.nextEpNum}` : `Playing Episode ${autoPlayingNext.nextEpNum}`}
-                    </p>
-    
-              </div>
-  
-              </div>
-              )}
+              <AnimatePresence>
+                {autoPlayingNext?.id === ep.id && (
+                  <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-black/80 backdrop-blur-md pointer-events-auto"
+                  >
+                    <div className="flex flex-col items-center pointer-events-auto">
+                      <h3 className="text-2xl font-black text-white mb-2 drop-shadow-lg">
+                        {isArabic ? 'الحلقة القادمة' : 'Up Next'}
+                      </h3>
+                      <p className="text-red-400 font-bold text-lg mb-8">
+                        {isArabic ? `حلقة ${autoPlayingNext.nextEpNum}` : `Episode ${autoPlayingNext.nextEpNum}`}
+                      </p>
+                      
+                      <div className="relative w-20 h-20 mb-8 cursor-pointer group" onClick={() => {
+                        scrollToEpisode(autoPlayingNext.nextEpId);
+                        setAutoPlayingNext(null);
+                      }}>
+                        <svg className="absolute inset-0 w-full h-full -rotate-90">
+                          <circle cx="40" cy="40" r="38" className="stroke-white/20" strokeWidth="4" fill="none" />
+                          <circle cx="40" cy="40" r="38" className="stroke-red-600" strokeWidth="4" fill="none" strokeDasharray="238" strokeDashoffset="238" style={{ animation: 'countdown 4s linear forwards' }} />
+                        </svg>
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/40 rounded-full group-hover:bg-red-600/20 transition-colors">
+                          <Play size={32} className="text-white ml-2" fill="currentColor" />
+                        </div>
+                      </div>
 
+                      <button 
+                        onClick={() => setAutoPlayingNext(null)}
+                        className="text-white/50 hover:text-white text-sm font-bold tracking-wider uppercase transition-colors"
+                      >
+                        {isArabic ? 'إلغاء' : 'Cancel'}
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               {/* Right Side Action Buttons */}
               <div className="absolute right-1.5 bottom-20 flex flex-col items-center gap-4 z-20 pointer-events-auto">
                 <div className={`flex flex-col items-center gap-4 transition-all duration-500 ${areControlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
