@@ -152,6 +152,7 @@ export const Watch = () => {
 
   useEffect(() => {
     lastAdMilestoneRef.current = 0;
+    setIsLongEpisodeAdPlaying(false);
     setAutoPlayingNext(prev => {
       if (prev && prev.id !== activeEpisodeId) {
         if (autoPlayNextRef.current) clearTimeout(autoPlayNextRef.current);
@@ -420,8 +421,10 @@ export const Watch = () => {
                   shouldLoad={isNearActive}
                   duration={ep.duration}
                   isUIVisible={areControlsVisible}
-                  onProgress={(time) => {
-                    if (isCurrentActive && (ep.isLongEpisode || (ep.duration && ep.duration >= 1200)) && !isPaidVip() && !isPointsVip()) {
+                  onProgress={(time, videoDuration) => {
+                    const finalDuration = videoDuration || ep.duration;
+                    const isNearEnd = finalDuration ? (finalDuration - time < 15) : false;
+                    if (isCurrentActive && !autoPlayingNext && !isNearEnd && (ep.isLongEpisode || (ep.duration && ep.duration >= 1200)) && !isPaidVip() && !isPointsVip()) {
                       const currentMilestone = Math.floor(time / 300);
                       if (currentMilestone > 0 && currentMilestone > lastAdMilestoneRef.current && !isLongEpisodeAdPlaying) {
                         lastAdMilestoneRef.current = currentMilestone;
@@ -443,7 +446,8 @@ export const Watch = () => {
                     // Auto-scroll to next episode or show unlock prompt
                     if (idx + 1 < episodes.length) {
                       const nextEp = episodes[idx + 1];
-                      const nextLocked = !isPaidVip() && !isPointsVip() && nextEp.episodeNumber > 6 && !unlockedEpisodes.includes(nextEp.id);
+                      const isNextLong = nextEp.isLongEpisode || (nextEp.duration && nextEp.duration >= 1200);
+                      const nextLocked = !isPaidVip() && !isPointsVip() && nextEp.episodeNumber > 6 && !unlockedEpisodes.includes(nextEp.id) && !isNextLong;
                       if (nextLocked) {
                         setShowUnlockModal(nextEp.id);
                       } else {

@@ -10,7 +10,7 @@ interface ReelPlayerProps {
   isActive: boolean;
   shouldLoad?: boolean; // whether to load the video source (for lazy loading)
   duration?: number; // duration in seconds set by admin
-  onProgress?: (time: number) => void;
+  onProgress?: (time: number, videoDuration?: number) => void;
   onComplete?: () => void;
   isUIVisible?: boolean;
 }
@@ -55,8 +55,13 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, shouldLoa
     if (forcePause && videoRef.current) {
       videoRef.current.pause();
       setIsPlaying(false);
+    } else if (!forcePause && videoRef.current && isActive && isReady) {
+      // Resume playing if forcePause is lifted
+      videoRef.current.play().then(() => {
+        setIsPlaying(true);
+      }).catch(() => {});
     }
-  }, [forcePause]);
+  }, [forcePause, isActive, isReady]);
 
   // Fallback timer for embeds to report progress
   useEffect(() => {
@@ -70,7 +75,7 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, shouldLoa
     const interval = setInterval(() => {
       setWatchedSeconds(prev => {
         const next = prev + 1;
-        if (onProgress) onProgress(next);
+        if (onProgress) onProgress(next, duration);
         
         // Pseudo-complete for embeds based on admin duration
         if (duration && next >= duration) {
@@ -367,7 +372,7 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, shouldLoa
       setProgress(pct);
     }
     if (onProgress) {
-      onProgress(video.currentTime);
+      onProgress(video.currentTime, video.duration);
     }
   };
 
