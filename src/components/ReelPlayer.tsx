@@ -1,10 +1,11 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, {  useEffect, useRef, useState , useLayoutEffect } from 'react';
 import Hls from 'hls.js';
 import { motion, AnimatePresence } from 'motion/react';
 import { Play, Pause, Volume2, VolumeX, Loader2, WifiOff, RotateCcw, RotateCw, FastForward } from 'lucide-react';
 import { parseVideoUrl } from '../utils/videoUtils';
 
 interface ReelPlayerProps {
+  playerSessionId?: number;
   url: string;
   forcePause?: boolean;
   isActive: boolean;
@@ -15,9 +16,12 @@ interface ReelPlayerProps {
   isUIVisible?: boolean;
 }
 
-export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, shouldLoad = true, duration, onProgress, onComplete, isUIVisible, forcePause }) => {
+export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, playerSessionId, shouldLoad = true, duration, onProgress, onComplete, isUIVisible, forcePause }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const isActiveRef = useRef(isActive);
+  const sessionRef = useRef(playerSessionId);
+  sessionRef.current = playerSessionId;
+  isActiveRef.current = isActive; // Sync update during render
   const onCompleteCalledRef = useRef(false);
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -96,17 +100,13 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, shouldLoa
     return () => clearInterval(interval);
   }, [parsed.embedUrl, isActive, forcePause, duration, onProgress, onComplete]);
 
-  // Synchronously update isActiveRef & reset state on inactive
-  useEffect(() => {
-    isActiveRef.current = isActive;
+  // Sync pause on inactive - useLayoutEffect fires before the browser paints
+  useLayoutEffect(() => {
     const video = videoRef.current;
-    
     if (!isActive) {
       onCompleteCalledRef.current = false;
       if (video) {
-        try {
-          video.pause();
-        } catch (e) {}
+        try { video.pause(); } catch (e) {}
         setIsPlaying(false);
       }
     } else {
@@ -138,8 +138,8 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, shouldLoa
         });
       } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
         video.src = parsed.originalUrl;
+        setIsReady(true); // iOS Catch-22: must be ready to trigger play() which triggers load
         const handleMetadata = () => {
-          setIsReady(true);
           setIsBuffering(false);
         };
         video.addEventListener('loadedmetadata', handleMetadata);
@@ -151,8 +151,8 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, shouldLoa
       }
     } else {
       video.src = parsed.originalUrl;
+      setIsReady(true); // Mobile Catch-22
       const handleMetadata = () => {
-        setIsReady(true);
         setIsBuffering(false);
       };
       video.addEventListener('loadedmetadata', handleMetadata);
@@ -172,20 +172,29 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, shouldLoa
     };
   }, [parsed.originalUrl, parsed.type, shouldLoad]);
 
-  // Master Playback Trigger based on isActive and isReady
+  // ROOT-LEVEL STRICT PLAYBACK CONTROLLER
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
-    if (isActive && isReady) {
-      // Unmute & attempt playback
+    const currentSessionAtMount = sessionRef.current;
+    let isCancelled = false;
+    
+    // Strict verification helper
+    const isValid = () => {
+      return !isCancelled && isActiveRef.current && sessionRef.current === currentSessionAtMount;
+    };
+
+    if (isActive && isReady && !forcePause) {
       video.muted = isMuted;
+      
       const playPromise = video.play();
+      
       if (playPromise !== undefined) {
         playPromise
           .then(() => {
-            // Check if user swiped away while play promise was fulfilling
-            if (!isActiveRef.current) {
+            // Check generation/session immediately after async resolve
+            if (!isValid()) {
               video.pause();
               setIsPlaying(false);
             } else {
@@ -194,18 +203,25 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, shouldLoa
             }
           })
           .catch((err) => {
-            console.warn('Playback prevented:', err);
+            if (err.name !== 'AbortError') {
+              console.warn('Playback prevented:', err);
+            }
             setIsPlaying(false);
           });
       }
     } else {
-      // Immediately stop & pause
+      // Force stop unconditionally if not active or forced paused
       video.pause();
       setIsPlaying(false);
-      try {
-      } catch (e) {}
     }
-  }, [isActive, isReady, isMuted]);
+
+    return () => {
+      isCancelled = true;
+      if (!isActiveRef.current) {
+        try { video.pause(); } catch(e) {}
+      }
+    };
+  }, [isActive, isReady, isMuted, forcePause, playerSessionId]);
 
   // Handle player state & completion messages from embedded iframe players
   useEffect(() => {
@@ -363,6 +379,7 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, shouldLoa
   };
 
   const handleTimeUpdate = () => {
+    if (!isActiveRef.current || sessionRef.current !== playerSessionId) return; // Strict session check
     const video = videoRef.current;
     if (!video) return;
 
@@ -451,6 +468,7 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, shouldLoa
         onStalled={() => setIsBuffering(true)}
         onPlaying={() => setIsBuffering(false)}
         onEnded={() => {
+          if (!isActiveRef.current || sessionRef.current !== playerSessionId) return; // Strict session check
           setIsPlaying(false);
           if (!onCompleteCalledRef.current) {
             onCompleteCalledRef.current = true;

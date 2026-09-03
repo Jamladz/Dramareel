@@ -35,6 +35,27 @@ export const Watch = () => {
   const [isAdLoading, setIsAdLoading] = useState(false);
   const [watchedVideosCount, setWatchedVideosCount] = useState(0);
   const [isLongEpisodeAdPlaying, setIsLongEpisodeAdPlaying] = useState(false);
+  const [isAppVisible, setIsAppVisible] = useState(true);
+
+  // Handle Telegram WebApp and standard document visibility lifecycle
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      setIsAppVisible(document.visibilityState === 'visible');
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Telegram WebApp specific lifecycle if needed
+    if (window.Telegram?.WebApp) {
+      window.Telegram.WebApp.onEvent('viewportChanged', () => {
+        setIsAppVisible(window.Telegram.WebApp.isExpanded || document.visibilityState === 'visible');
+      });
+    }
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
   const lastAdMilestoneRef = useRef<number>(0);
 
 
@@ -45,13 +66,16 @@ export const Watch = () => {
 
     setIsAdLoading(true);
     const success = await showAdsgramAd(ADSGRAM_BLOCKS.WATCH_AD);
+    
+    // Always clear loading if still mounted
     setIsAdLoading(false);
 
+    // Adsgram reward idempotency logic - only grant reward if success is true
     if (success) {
       // Unlock this episode
       unlockEpisode(epId);
 
-      // Unlock pair episode (e.g. if ep 7 -> unlock ep 8 as well)
+      // Unlock pair episode
       const pairEpNum = currentEp.episodeNumber % 2 === 1 
         ? currentEp.episodeNumber + 1 
         : currentEp.episodeNumber - 1;
@@ -143,6 +167,11 @@ export const Watch = () => {
   }, [movie]);
 
   const [activeEpisodeId, setActiveEpisodeId] = useState<string>('');
+  const playerSessionRef = useRef({ episodeId: '', generation: 0, triggeredMilestones: new Set<number>() });
+  const isCurrentSession = (epId: string, gen: number) => {
+    return playerSessionRef.current.episodeId === epId && playerSessionRef.current.generation === gen;
+  };
+
   const activeEpisodeIdRef = useRef<string>(activeEpisodeId);
   const autoPlayNextRef = useRef<NodeJS.Timeout | null>(null);
   
@@ -198,18 +227,38 @@ export const Watch = () => {
     
   }, [movie, navigate]);
 
+  const isProgrammaticScrollRef = useRef(false);
+  const scrollTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // Scroll to active episode on initial load or drawer click
-  const scrollToEpisode = (epId: string, smoothAdjacent = false) => {
-    if (!smoothAdjacent) {
-      setActiveEpisodeId(epId);
+  const switchToEpisode = (epId: string, smoothAdjacent = false) => {
+    isProgrammaticScrollRef.current = true;
+    
+    // STRICT SINGLE PLAYER LIFECYCLE
+    if (playerSessionRef.current.episodeId !== epId) {
+      playerSessionRef.current = {
+        episodeId: epId,
+        generation: playerSessionRef.current.generation + 1,
+        triggeredMilestones: new Set<number>()
+      };
     }
+    
+    setActiveEpisodeId(epId);
+    
     if (containerRef.current) {
       const el = containerRef.current.querySelector(`[data-episode-id="${epId}"]`);
       if (el) {
         el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }
     }
+    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    scrollTimeoutRef.current = setTimeout(() => {
+      isProgrammaticScrollRef.current = false;
+    }, 800);
   };
+  
+  const scrollToEpisode = switchToEpisode; // Alias
+  
 
   useEffect(() => {
     const params = new URLSearchParams(location.search);
@@ -222,55 +271,72 @@ export const Watch = () => {
     }
   }, [location.search, episodes]);
 
-  // Precise height-based calculation on scroll for instant active episode switching
-  const handleScroll = () => {
-    const container = containerRef.current;
-    if (!container) return;
-    const height = container.clientHeight;
-    if (height <= 0) return;
-    const index = Math.round(container.scrollTop / height);
-    if (episodes[index] && episodes[index].id !== activeEpisodeId) {
-      setActiveEpisodeId(episodes[index].id);
-    }
-  };
 
-  // Backup IntersectionObserver for snap scroll completion
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
 
-    observer.current = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
-            const epId = entry.target.getAttribute('data-episode-id');
-            if (epId) setActiveEpisodeId(epId);
-          }
-        });
-      },
-      {
-        root: container,
-        threshold: [0.5, 0.7],
-      }
-    );
 
-    const children = container.querySelectorAll('.reel-item');
-    children.forEach((child) => observer.current?.observe(child));
-
-    return () => {
-      if (observer.current) observer.current.disconnect();
-    };
-  }, [episodes]);
 
 
   if (!movie || episodes.length === 0) return null;
 
   const currentEpIndex = episodes.findIndex(e => e.id === activeEpisodeId);
   const currentEp = episodes[currentEpIndex] || episodes[0];
+    // High-performance IntersectionObserver for immediate switching
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Use a high-frequency observer to detect crossing the 40% threshold immediately
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (isProgrammaticScrollRef.current) return;
+        
+        // Find the most prominent entry that crosses our threshold
+        let bestEpId = null;
+        let maxRatio = 0;
+        
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && entry.intersectionRatio > 0.4) {
+            if (entry.intersectionRatio > maxRatio) {
+              maxRatio = entry.intersectionRatio;
+              bestEpId = entry.target.getAttribute('data-episode-id');
+            }
+          }
+        });
+        
+        if (bestEpId && bestEpId !== playerSessionRef.current.episodeId) {
+          playerSessionRef.current = {
+            episodeId: bestEpId,
+            generation: playerSessionRef.current.generation + 1,
+            triggeredMilestones: new Set<number>()
+          };
+          setActiveEpisodeId(bestEpId);
+        }
+      },
+      {
+        root: container,
+        threshold: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], // High frequency updates for instant reaction
+      }
+    );
+
+    // Observe all children
+    const children = Array.from(container.querySelectorAll('.reel-item'));
+    children.forEach((child) => observer.observe(child));
+
+    // Fallback: also observe DOM mutations in case elements are added late
+    const mutationObserver = new MutationObserver(() => {
+      const newChildren = Array.from(container.querySelectorAll('.reel-item'));
+      newChildren.forEach((child) => observer.observe(child));
+    });
+    mutationObserver.observe(container, { childList: true });
+
+    return () => {
+      observer.disconnect();
+      mutationObserver.disconnect();
+    };
+  }, [episodes]);
 
   return (
-    <div 
-      onClick={handleScreenTouch}
+    <div onClick={handleScreenTouch}
       className="bg-black fixed inset-0 z-50 flex flex-col select-none" 
       dir={isArabic ? 'rtl' : 'ltr'}
     >
@@ -315,18 +381,15 @@ export const Watch = () => {
           <ArrowLeft size={20} className={isArabic ? 'rotate-180' : ''} />
         </button>
       </div>
-
-
-
       {/* Vertical Scroll Container */}
       <div 
         ref={containerRef}
-        onScroll={handleScroll}
+        
         className="flex-1 overflow-y-scroll snap-y snap-mandatory hide-scrollbar touch-pan-y"
         style={{ scrollBehavior: 'smooth' }}
       >
         {episodes.map((ep, idx) => {
-          const isLong = ep.isLongEpisode || (ep.duration && ep.duration >= 1200);
+          const isLong = ep.isLongEpisode || (ep.duration && ep.duration >= 360);
           const isLocked = !isPaidVip() && !isPointsVip() && ep.episodeNumber > 6 && !unlockedEpisodes.includes(ep.id) && !isLong;
           const isCurrentActive = activeEpisodeId === ep.id;
           const activeIndex = episodes.findIndex(e => e.id === activeEpisodeId);
@@ -362,11 +425,18 @@ export const Watch = () => {
                         <button
                           disabled={isAdLoading}
                           onClick={async () => {
+                            // Capture session before async ad
+                            const adGeneration = playerSessionRef.current.generation;
+                            
                             setIsAdLoading(true);
                             const success = await showAdsgramAd(ADSGRAM_BLOCKS.LONG_EPISODE_AD);
-                            setIsAdLoading(false);
-                            // Even if Adsgram is skipped/fails, we let them continue for this milestone
-                            setIsLongEpisodeAdPlaying(false);
+                            
+                            // Check if component unmounted or session changed
+                            if (isCurrentSession(ep.id, adGeneration)) {
+                              setIsAdLoading(false);
+                              // Even if Adsgram is skipped/fails, we let them continue for this milestone
+                              setIsLongEpisodeAdPlaying(false);
+                            }
                           }}
                           className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 text-white font-black active:scale-95 transition-all shadow-lg shadow-red-600/20 flex items-center justify-center gap-2"
                         >
@@ -417,17 +487,20 @@ export const Watch = () => {
                 <ReelPlayer 
                   url={ep.videoUrl} 
                   isActive={isCurrentActive}
-                  forcePause={isCurrentActive && isLongEpisodeAdPlaying}
+                  forcePause={(isCurrentActive && isLongEpisodeAdPlaying) || !isAppVisible}
                   shouldLoad={isNearActive}
                   duration={ep.duration}
                   isUIVisible={areControlsVisible}
                   onProgress={(time, videoDuration) => {
                     const finalDuration = videoDuration || ep.duration;
                     const isNearEnd = finalDuration ? (finalDuration - time < 15) : false;
-                    if (isCurrentActive && !autoPlayingNext && !isNearEnd && (ep.isLongEpisode || (ep.duration && ep.duration >= 1200)) && !isPaidVip() && !isPointsVip()) {
+                    // 5-MINUTE AD MILESTONE LOGIC WITH SESSION VALIDATION
+                    if (isCurrentActive && !autoPlayingNext && !isNearEnd && (ep.isLongEpisode || (finalDuration && finalDuration >= 360)) && !isPaidVip() && !isPointsVip()) {
                       const currentMilestone = Math.floor(time / 300);
-                      if (currentMilestone > 0 && currentMilestone > lastAdMilestoneRef.current && !isLongEpisodeAdPlaying) {
-                        lastAdMilestoneRef.current = currentMilestone;
+                      
+                      // Check crossing properly and avoid duplicate triggers
+                      if (currentMilestone > 0 && !playerSessionRef.current.triggeredMilestones.has(currentMilestone) && !isLongEpisodeAdPlaying) {
+                        playerSessionRef.current.triggeredMilestones.add(currentMilestone);
                         setIsLongEpisodeAdPlaying(true);
                       }
                     }
@@ -446,7 +519,7 @@ export const Watch = () => {
                     // Auto-scroll to next episode or show unlock prompt
                     if (idx + 1 < episodes.length) {
                       const nextEp = episodes[idx + 1];
-                      const isNextLong = nextEp.isLongEpisode || (nextEp.duration && nextEp.duration >= 1200);
+                      const isNextLong = nextEp.isLongEpisode || (nextEp.duration && nextEp.duration >= 360);
                       const nextLocked = !isPaidVip() && !isPointsVip() && nextEp.episodeNumber > 6 && !unlockedEpisodes.includes(nextEp.id) && !isNextLong;
                       if (nextLocked) {
                         setShowUnlockModal(nextEp.id);
@@ -454,11 +527,15 @@ export const Watch = () => {
                         setAutoPlayingNext({ id: ep.id, nextEpNum: nextEp.episodeNumber, nextEpId: nextEp.id });
                         
                         if (autoPlayNextRef.current) clearTimeout(autoPlayNextRef.current);
+                        
+                        // Capture current generation for safe comparison
+                        const autoNextGeneration = playerSessionRef.current.generation;
+                        
                         autoPlayNextRef.current = setTimeout(() => {
                           setAutoPlayingNext(null);
-                          // Only transition if the user hasn't scrolled away during the countdown
-                          if (activeEpisodeIdRef.current === ep.id) {
-                            scrollToEpisode(nextEp.id, true);
+                          // STRICT SESSION VALIDATION
+                          if (isCurrentSession(ep.id, autoNextGeneration)) {
+                            switchToEpisode(nextEp.id, true);
                           }
                         }, 4000);
                       }
@@ -643,7 +720,7 @@ export const Watch = () => {
 
             <div className="grid grid-cols-4 gap-2.5 overflow-y-auto pr-1 pb-4">
               {episodes.map((ep) => {
-                const isLong = ep.isLongEpisode || (ep.duration && ep.duration >= 1200);
+                const isLong = ep.isLongEpisode || (ep.duration && ep.duration >= 360);
                 const isLocked = !isVipActive() && ep.episodeNumber > 6 && !unlockedEpisodes.includes(ep.id) && !isLong;
                 const isSelected = activeEpisodeId === ep.id;
 
