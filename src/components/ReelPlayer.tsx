@@ -101,7 +101,6 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, shouldLoa
       if (video) {
         try {
           video.pause();
-          video.currentTime = 0;
         } catch (e) {}
         setIsPlaying(false);
       }
@@ -183,7 +182,6 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, shouldLoa
             // Check if user swiped away while play promise was fulfilling
             if (!isActiveRef.current) {
               video.pause();
-              video.currentTime = 0;
               setIsPlaying(false);
             } else {
               setIsPlaying(true);
@@ -200,7 +198,6 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, shouldLoa
       video.pause();
       setIsPlaying(false);
       try {
-        video.currentTime = 0;
       } catch (e) {}
     }
   }, [isActive, isReady, isMuted]);

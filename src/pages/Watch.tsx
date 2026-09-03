@@ -143,9 +143,22 @@ export const Watch = () => {
   }, [movie]);
 
   const [activeEpisodeId, setActiveEpisodeId] = useState<string>('');
+  const activeEpisodeIdRef = useRef<string>(activeEpisodeId);
+  const autoPlayNextRef = useRef<NodeJS.Timeout | null>(null);
+  
+  useEffect(() => {
+    activeEpisodeIdRef.current = activeEpisodeId;
+  }, [activeEpisodeId]);
 
   useEffect(() => {
     lastAdMilestoneRef.current = 0;
+    setAutoPlayingNext(prev => {
+      if (prev && prev.id !== activeEpisodeId) {
+        if (autoPlayNextRef.current) clearTimeout(autoPlayNextRef.current);
+        return null;
+      }
+      return prev;
+    });
   }, [activeEpisodeId]);
   const [autoPlayingNext, setAutoPlayingNext] = useState<{ id: string; nextEpNum: number; nextEpId: string } | null>(null);
 
@@ -185,8 +198,10 @@ export const Watch = () => {
   }, [movie, navigate]);
 
   // Scroll to active episode on initial load or drawer click
-  const scrollToEpisode = (epId: string) => {
-    setActiveEpisodeId(epId);
+  const scrollToEpisode = (epId: string, smoothAdjacent = false) => {
+    if (!smoothAdjacent) {
+      setActiveEpisodeId(epId);
+    }
     if (containerRef.current) {
       const el = containerRef.current.querySelector(`[data-episode-id="${epId}"]`);
       if (el) {
@@ -434,13 +449,13 @@ export const Watch = () => {
                       } else {
                         setAutoPlayingNext({ id: ep.id, nextEpNum: nextEp.episodeNumber, nextEpId: nextEp.id });
                         
-                        setTimeout(() => {
-                          setAutoPlayingNext(prev => {
-                            if (prev && prev.id === ep.id) {
-                              scrollToEpisode(nextEp.id);
-                            }
-                            return null;
-                          });
+                        if (autoPlayNextRef.current) clearTimeout(autoPlayNextRef.current);
+                        autoPlayNextRef.current = setTimeout(() => {
+                          setAutoPlayingNext(null);
+                          // Only transition if the user hasn't scrolled away during the countdown
+                          if (activeEpisodeIdRef.current === ep.id) {
+                            scrollToEpisode(nextEp.id, true);
+                          }
                         }, 4000);
                       }
                     }
@@ -466,7 +481,8 @@ export const Watch = () => {
                       </p>
                       
                       <div className="relative w-20 h-20 mb-8 cursor-pointer group" onClick={() => {
-                        scrollToEpisode(autoPlayingNext.nextEpId);
+                        if (autoPlayNextRef.current) clearTimeout(autoPlayNextRef.current);
+                        scrollToEpisode(autoPlayingNext.nextEpId, true);
                         setAutoPlayingNext(null);
                       }}>
                         <svg className="absolute inset-0 w-full h-full -rotate-90">
@@ -479,7 +495,10 @@ export const Watch = () => {
                       </div>
 
                       <button 
-                        onClick={() => setAutoPlayingNext(null)}
+                        onClick={() => {
+                          if (autoPlayNextRef.current) clearTimeout(autoPlayNextRef.current);
+                          setAutoPlayingNext(null);
+                        }}
                         className="text-white/50 hover:text-white text-sm font-bold tracking-wider uppercase transition-colors"
                       >
                         {isArabic ? 'إلغاء' : 'Cancel'}
