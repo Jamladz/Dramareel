@@ -494,7 +494,7 @@ export const Watch = () => {
                             disabled={isAdLoading}
                             onClick={async () => {
                               setIsAdLoading(true);
-                              const success = await showAdsgramAd(ADSGRAM_BLOCKS.WATCH_AD);
+                              const success = await showAdsgramAd(ADSGRAM_BLOCKS.REWARD_AD);
                               setIsAdLoading(false);
                               if (success) {
                                 unlockEpisode(ep.id);
