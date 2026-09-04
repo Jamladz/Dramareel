@@ -6,8 +6,14 @@ const originalConsoleInfo = console.info;
 const originalConsoleLog = console.log;
 
 const shouldSuppress = (args: any[]) => {
-  if (args[0] && typeof args[0] === 'string' && (args[0].includes('CloudStorage is not supported') || args[0].includes('[Telegram.WebApp] CloudStorage'))) {
-    return true;
+  if (args[0] && typeof args[0] === 'string') {
+    const msg = args[0];
+    if (msg.includes('CloudStorage is not supported') || msg.includes('[Telegram.WebApp] CloudStorage')) {
+      return true;
+    }
+    if (msg.includes('Could not reach Cloud Firestore backend') || msg.includes('FirebaseError: [code=unavailable]')) {
+      return true;
+    }
   }
   return false;
 };

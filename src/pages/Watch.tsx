@@ -175,6 +175,28 @@ export const Watch = () => {
   const isUnlockLong = unlockEp ? (unlockEp.isLongEpisode || (unlockEp.duration && unlockEp.duration >= 360)) : false;
 
   const [activeEpisodeId, setActiveEpisodeId] = useState<string>('');
+  const [playingEpisodeId, setPlayingEpisodeId] = useState<string>('');
+  
+  // Centralized single-player transition logic
+  const currentEpData = useMemo(() => episodes.find(e => e.id === activeEpisodeId), [episodes, activeEpisodeId]);
+  const currentIsLong = currentEpData ? (currentEpData.isLongEpisode || (currentEpData.duration && currentEpData.duration >= 360)) : false;
+  const currentNeedsLongAd = currentEpData ? (!isPaidVip() && !isPointsVip() && !unlockedEpisodes.includes(currentEpData.id) && currentIsLong && currentEpData.episodeNumber > 1) : false;
+  const currentIsLocked = currentEpData ? (!isPaidVip() && !isPointsVip() && !unlockedEpisodes.includes(currentEpData.id) && !currentIsLong && currentEpData.episodeNumber > 6) : false;
+  const currentAllowedToPlay = currentEpData && !currentNeedsLongAd && !currentIsLocked;
+
+  useEffect(() => {
+    // Immediate pause of EVERYTHING when user starts swiping or target changes
+    setPlayingEpisodeId('');
+
+    if (activeEpisodeId && currentAllowedToPlay) {
+      // Debounce the play to ensure user has stopped swiping
+      const timeout = setTimeout(() => {
+        setPlayingEpisodeId(activeEpisodeId);
+      }, 250);
+      return () => clearTimeout(timeout);
+    }
+  }, [activeEpisodeId, currentAllowedToPlay]);
+
   const playerSessionRef = useRef({ episodeId: '', generation: 0, triggeredMilestones: new Set<number>() });
   const isCurrentSession = (epId: string, gen: number) => {
     return playerSessionRef.current.episodeId === epId && playerSessionRef.current.generation === gen;
@@ -326,12 +348,12 @@ export const Watch = () => {
     );
 
     // Observe all children
-    const children = Array.from(container.querySelectorAll('.reel-item'));
+    const children = Array.from(container.querySelectorAll('.reel-item')) as Element[];
     children.forEach((child) => observer.observe(child));
 
     // Fallback: also observe DOM mutations in case elements are added late
     const mutationObserver = new MutationObserver(() => {
-      const newChildren = Array.from(container.querySelectorAll('.reel-item'));
+      const newChildren = Array.from(container.querySelectorAll('.reel-item')) as Element[];
       newChildren.forEach((child) => observer.observe(child));
     });
     mutationObserver.observe(container, { childList: true });
@@ -491,7 +513,7 @@ export const Watch = () => {
                   <ReelPlayer 
                     url={ep.videoUrl} 
                     isActive={isCurrentActive}
-                    forcePause={(isCurrentActive && needsLongAd) || !isAppVisible}
+                    forcePause={playingEpisodeId !== ep.id || !isAppVisible}
                     shouldLoad={isNearActive}
                     duration={ep.duration}
                     isUIVisible={areControlsVisible}
