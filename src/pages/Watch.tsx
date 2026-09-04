@@ -319,15 +319,17 @@ export const Watch = () => {
       (entries) => {
         if (isProgrammaticScrollRef.current) return;
         
-        // Find the most prominent entry that crosses our threshold
         let bestEpId = null;
-        let maxRatio = 0;
         
         entries.forEach((entry) => {
-          if (entry.isIntersecting && entry.intersectionRatio > 0.4) {
-            if (entry.intersectionRatio > maxRatio) {
-              maxRatio = entry.intersectionRatio;
-              bestEpId = entry.target.getAttribute('data-episode-id');
+          const epId = entry.target.getAttribute('data-episode-id');
+          if (entry.isIntersecting) {
+            if (entry.intersectionRatio > 0.5) {
+              bestEpId = epId;
+            }
+            // Immediate pause on iOS when scrolling starts (visibility drops below 95%)
+            if (epId === playerSessionRef.current.episodeId && entry.intersectionRatio < 0.95) {
+              setPlayingEpisodeId('');
             }
           }
         });
@@ -343,7 +345,7 @@ export const Watch = () => {
       },
       {
         root: container,
-        threshold: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0], // High frequency updates for instant reaction
+        threshold: [0.51, 0.95], // 0.95 for detecting scroll start, 0.51 for active change
       }
     );
 
@@ -414,8 +416,7 @@ export const Watch = () => {
       <div 
         ref={containerRef}
         
-        className="flex-1 overflow-y-scroll snap-y snap-mandatory hide-scrollbar touch-pan-y"
-        style={{ scrollBehavior: 'smooth' }}
+        className="flex-1 overflow-y-scroll snap-y snap-mandatory hide-scrollbar"
       >
         {episodes.map((ep, idx) => {
           const isLong = ep.isLongEpisode || (ep.duration && ep.duration >= 360);
@@ -429,7 +430,7 @@ export const Watch = () => {
             <div 
               key={ep.id} 
               data-episode-id={ep.id}
-              className="reel-item relative w-full h-full snap-start snap-always touch-pan-y"
+              className="reel-item relative w-full h-full snap-start"
             >
 
               {isLocked ? (
