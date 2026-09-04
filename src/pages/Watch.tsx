@@ -34,7 +34,6 @@ export const Watch = () => {
   const [showPointsStoreModal, setShowPointsStoreModal] = useState(false);
   const [isAdLoading, setIsAdLoading] = useState(false);
   const [watchedVideosCount, setWatchedVideosCount] = useState(0);
-  const [isLongEpisodeAdPlaying, setIsLongEpisodeAdPlaying] = useState(false);
   const [isAppVisible, setIsAppVisible] = useState(true);
 
   // Handle Telegram WebApp and standard document visibility lifecycle
@@ -75,14 +74,17 @@ export const Watch = () => {
       // Unlock this episode
       unlockEpisode(epId);
 
-      // Unlock pair episode
-      const pairEpNum = currentEp.episodeNumber % 2 === 1 
-        ? currentEp.episodeNumber + 1 
-        : currentEp.episodeNumber - 1;
-      
-      const pairEp = episodes.find(e => e.episodeNumber === pairEpNum);
-      if (pairEp) {
-        unlockEpisode(pairEp.id);
+      // Unlock pair episode if not long
+      const isLong = currentEp.isLongEpisode || (currentEp.duration && currentEp.duration >= 360);
+      if (!isLong) {
+        const pairEpNum = currentEp.episodeNumber % 2 === 1 
+          ? currentEp.episodeNumber + 1 
+          : currentEp.episodeNumber - 1;
+        
+        const pairEp = episodes.find(e => e.episodeNumber === pairEpNum);
+        if (pairEp) {
+          unlockEpisode(pairEp.id);
+        }
       }
 
       setShowUnlockModal(null);
@@ -96,12 +98,15 @@ export const Watch = () => {
         
         const currentEp = episodes.find(e => e.id === epId);
         if (currentEp) {
-          const pairEpNum = currentEp.episodeNumber % 2 === 1 
-            ? currentEp.episodeNumber + 1 
-            : currentEp.episodeNumber - 1;
-          const pairEp = episodes.find(e => e.episodeNumber === pairEpNum);
-          if (pairEp) {
-            unlockEpisode(pairEp.id);
+          const isLong = currentEp.isLongEpisode || (currentEp.duration && currentEp.duration >= 360);
+          if (!isLong) {
+            const pairEpNum = currentEp.episodeNumber % 2 === 1 
+              ? currentEp.episodeNumber + 1 
+              : currentEp.episodeNumber - 1;
+            const pairEp = episodes.find(e => e.episodeNumber === pairEpNum);
+            if (pairEp) {
+              unlockEpisode(pairEp.id);
+            }
           }
         }
 
@@ -166,6 +171,9 @@ export const Watch = () => {
     }];
   }, [movie]);
 
+  const unlockEp = useMemo(() => episodes.find(e => e.id === showUnlockModal), [episodes, showUnlockModal]);
+  const isUnlockLong = unlockEp ? (unlockEp.isLongEpisode || (unlockEp.duration && unlockEp.duration >= 360)) : false;
+
   const [activeEpisodeId, setActiveEpisodeId] = useState<string>('');
   const playerSessionRef = useRef({ episodeId: '', generation: 0, triggeredMilestones: new Set<number>() });
   const isCurrentSession = (epId: string, gen: number) => {
@@ -181,7 +189,6 @@ export const Watch = () => {
 
   useEffect(() => {
     lastAdMilestoneRef.current = 0;
-    setIsLongEpisodeAdPlaying(false);
     setAutoPlayingNext(prev => {
       if (prev && prev.id !== activeEpisodeId) {
         if (autoPlayNextRef.current) clearTimeout(autoPlayNextRef.current);
@@ -390,7 +397,8 @@ export const Watch = () => {
       >
         {episodes.map((ep, idx) => {
           const isLong = ep.isLongEpisode || (ep.duration && ep.duration >= 360);
-          const isLocked = !isPaidVip() && !isPointsVip() && ep.episodeNumber > 6 && !unlockedEpisodes.includes(ep.id) && !isLong;
+          const isLocked = !isPaidVip() && !isPointsVip() && !unlockedEpisodes.includes(ep.id) && !isLong && ep.episodeNumber > 6;
+          const needsLongAd = !isPaidVip() && !isPointsVip() && !unlockedEpisodes.includes(ep.id) && isLong && ep.episodeNumber > 1;
           const isCurrentActive = activeEpisodeId === ep.id;
           const activeIndex = episodes.findIndex(e => e.id === activeEpisodeId);
           const isNearActive = Math.abs(idx - activeIndex) <= 1;
@@ -401,52 +409,6 @@ export const Watch = () => {
               data-episode-id={ep.id}
               className="reel-item relative w-full h-full snap-start snap-always touch-pan-y"
             >
-                {/* 5-Min Ad Prompt for Long Episodes */}
-                <AnimatePresence>
-                  {isCurrentActive && isLongEpisodeAdPlaying && (
-                    <motion.div 
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="absolute inset-0 z-[100] bg-black/80 backdrop-blur-md flex flex-col items-center justify-center p-6"
-                    >
-                      <div className="bg-[#111] border border-white/10 p-6 rounded-3xl max-w-sm w-full text-center shadow-2xl flex flex-col items-center">
-                        <div className="w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-500 flex items-center justify-center mb-4">
-                          <Tv size={32} />
-                        </div>
-                        <h3 className="text-xl font-black text-white mb-2">
-                          {isArabic ? 'فاصل إعلاني' : 'Ad Break'}
-                        </h3>
-                        <p className="text-sm text-white/60 mb-6 leading-relaxed">
-                          {isArabic 
-                            ? 'لمواصلة المشاهدة مجاناً، يرجى مشاهدة إعلان قصير' 
-                            : 'To continue watching for free, please watch a short ad'}
-                        </p>
-                        <button
-                          disabled={isAdLoading}
-                          onClick={async () => {
-                            // Capture session before async ad
-                            const adGeneration = playerSessionRef.current.generation;
-                            
-                            setIsAdLoading(true);
-                            const success = await showAdsgramAd(ADSGRAM_BLOCKS.LONG_EPISODE_AD);
-                            
-                            // Check if component unmounted or session changed
-                            if (isCurrentSession(ep.id, adGeneration)) {
-                              setIsAdLoading(false);
-                              // Even if Adsgram is skipped/fails, we let them continue for this milestone
-                              setIsLongEpisodeAdPlaying(false);
-                            }
-                          }}
-                          className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 text-white font-black active:scale-95 transition-all shadow-lg shadow-red-600/20 flex items-center justify-center gap-2"
-                        >
-                          {isAdLoading ? <Loader2 size={20} className="animate-spin" /> : <Play size={20} />}
-                          <span>{isArabic ? 'شاهد الإعلان وأكمل' : 'Watch Ad & Continue'}</span>
-                        </button>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
 
               {isLocked ? (
                 <div className="absolute inset-0 bg-[#0A0A0A] flex flex-col items-center justify-center z-10 px-6 text-center">
@@ -484,64 +446,93 @@ export const Watch = () => {
   
               </div>
               ) : (
-                <ReelPlayer 
-                  url={ep.videoUrl} 
-                  isActive={isCurrentActive}
-                  forcePause={(isCurrentActive && isLongEpisodeAdPlaying) || !isAppVisible}
-                  shouldLoad={isNearActive}
-                  duration={ep.duration}
-                  isUIVisible={areControlsVisible}
-                  onProgress={(time, videoDuration) => {
-                    const finalDuration = videoDuration || ep.duration;
-                    const isNearEnd = finalDuration ? (finalDuration - time < 15) : false;
-                    // 5-MINUTE AD MILESTONE LOGIC WITH SESSION VALIDATION
-                    if (isCurrentActive && !autoPlayingNext && !isNearEnd && (ep.isLongEpisode || (finalDuration && finalDuration >= 360)) && !isPaidVip() && !isPointsVip()) {
-                      const currentMilestone = Math.floor(time / 300);
-                      
-                      // Check crossing properly and avoid duplicate triggers
-                      if (currentMilestone > 0 && !playerSessionRef.current.triggeredMilestones.has(currentMilestone) && !isLongEpisodeAdPlaying) {
-                        playerSessionRef.current.triggeredMilestones.add(currentMilestone);
-                        setIsLongEpisodeAdPlaying(true);
-                      }
-                    }
-                  }}
-                  onComplete={() => {
-                    useAppStore.getState().completeEpisode(ep.id);
+                <>
+                  {/* 5-Min Ad Prompt for Long Episodes Between Episodes */}
+                  <AnimatePresence>
+                    {isCurrentActive && needsLongAd && (
+                      <motion.div 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="absolute inset-0 z-[100] bg-black/80 backdrop-blur-md flex flex-col items-center justify-center p-6"
+                      >
+                        <div className="bg-[#111] border border-white/10 p-6 rounded-3xl max-w-sm w-full text-center shadow-2xl flex flex-col items-center">
+                          <div className="w-16 h-16 rounded-2xl bg-amber-500/20 text-amber-500 flex items-center justify-center mb-4">
+                            <Tv size={32} />
+                          </div>
+                          <h3 className="text-xl font-black text-white mb-2">
+                            {isArabic ? 'فاصل إعلاني' : 'Ad Break'}
+                          </h3>
+                          <p className="text-sm text-white/60 mb-6 leading-relaxed">
+                            {isArabic 
+                              ? 'لمواصلة المشاهدة مجاناً، يرجى مشاهدة إعلان قصير' 
+                              : 'To continue watching for free, please watch a short ad'}
+                          </p>
+                          <button
+                            disabled={isAdLoading}
+                            onClick={async () => {
+                              setIsAdLoading(true);
+                              const success = await showAdsgramAd(ADSGRAM_BLOCKS.LONG_EPISODE_AD);
+                              setIsAdLoading(false);
+                              if (success) {
+                                unlockEpisode(ep.id);
+                              }
+                            }}
+                            className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 text-white font-black active:scale-95 transition-all shadow-lg shadow-red-600/20 flex items-center justify-center gap-2"
+                          >
+                            {isAdLoading ? <Loader2 size={20} className="animate-spin" /> : <Play size={20} />}
+                            <span>{isArabic ? 'شاهد الإعلان وأكمل' : 'Watch Ad & Continue'}</span>
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
-                    if (isPointsVip()) {
-                      const newCount = watchedVideosCount + 1;
-                      setWatchedVideosCount(newCount);
-                      if (newCount % 6 === 0) {
-                        showAdsgramAd(ADSGRAM_BLOCKS.WATCH_AD);
-                      }
-                    }
+                  <ReelPlayer 
+                    url={ep.videoUrl} 
+                    isActive={isCurrentActive}
+                    forcePause={(isCurrentActive && needsLongAd) || !isAppVisible}
+                    shouldLoad={isNearActive}
+                    duration={ep.duration}
+                    isUIVisible={areControlsVisible}
+                    onComplete={() => {
+                      useAppStore.getState().completeEpisode(ep.id);
 
-                    // Auto-scroll to next episode or show unlock prompt
-                    if (idx + 1 < episodes.length) {
-                      const nextEp = episodes[idx + 1];
-                      const isNextLong = nextEp.isLongEpisode || (nextEp.duration && nextEp.duration >= 360);
-                      const nextLocked = !isPaidVip() && !isPointsVip() && nextEp.episodeNumber > 6 && !unlockedEpisodes.includes(nextEp.id) && !isNextLong;
-                      if (nextLocked) {
-                        setShowUnlockModal(nextEp.id);
-                      } else {
-                        setAutoPlayingNext({ id: ep.id, nextEpNum: nextEp.episodeNumber, nextEpId: nextEp.id });
-                        
-                        if (autoPlayNextRef.current) clearTimeout(autoPlayNextRef.current);
-                        
-                        // Capture current generation for safe comparison
-                        const autoNextGeneration = playerSessionRef.current.generation;
-                        
-                        autoPlayNextRef.current = setTimeout(() => {
-                          setAutoPlayingNext(null);
-                          // STRICT SESSION VALIDATION
-                          if (isCurrentSession(ep.id, autoNextGeneration)) {
-                            switchToEpisode(nextEp.id, true);
-                          }
-                        }, 4000);
+                      if (isPointsVip()) {
+                        const newCount = watchedVideosCount + 1;
+                        setWatchedVideosCount(newCount);
+                        if (newCount % 6 === 0) {
+                          showAdsgramAd(ADSGRAM_BLOCKS.WATCH_AD);
+                        }
                       }
-                    }
-                  }}
-                />
+
+                      // Auto-scroll to next episode or show unlock prompt
+                      if (idx + 1 < episodes.length) {
+                        const nextEp = episodes[idx + 1];
+                        const isNextLong = nextEp.isLongEpisode || (nextEp.duration && nextEp.duration >= 360);
+                        const nextLocked = !isPaidVip() && !isPointsVip() && !unlockedEpisodes.includes(nextEp.id) && !isNextLong && nextEp.episodeNumber > 6;
+                        if (nextLocked) {
+                          setShowUnlockModal(nextEp.id);
+                        } else {
+                          setAutoPlayingNext({ id: ep.id, nextEpNum: nextEp.episodeNumber, nextEpId: nextEp.id });
+                          
+                          if (autoPlayNextRef.current) clearTimeout(autoPlayNextRef.current);
+                          
+                          // Capture current generation for safe comparison
+                          const autoNextGeneration = playerSessionRef.current.generation;
+                          
+                          autoPlayNextRef.current = setTimeout(() => {
+                            setAutoPlayingNext(null);
+                            // STRICT SESSION VALIDATION
+                            if (isCurrentSession(ep.id, autoNextGeneration)) {
+                              switchToEpisode(nextEp.id, true);
+                            }
+                          }, 4000);
+                        }
+                      }
+                    }}
+                  />
+                </>
               )}
 
               {/* Auto Play Next Overlay */}
@@ -756,7 +747,11 @@ export const Watch = () => {
             {/* Top Badge */}
             <div className="bg-gradient-to-r from-amber-500 to-yellow-400 text-black text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-wider mb-3 shadow-md flex items-center gap-1">
               <Sparkles size={12} className="fill-black" />
-              <span>{isArabic ? 'الحلقات 1 إلى 6 مجانية بالكامل!' : 'Episodes 1-6 are 100% Free!'}</span>
+              <span>
+                {isUnlockLong 
+                  ? (isArabic ? 'الحلقة الأولى مجانية بالكامل!' : 'Episode 1 is 100% Free!')
+                  : (isArabic ? 'الحلقات 1 إلى 6 مجانية بالكامل!' : 'Episodes 1-6 are 100% Free!')}
+              </span>
             </div>
 
             <div className="w-16 h-16 bg-gradient-to-tr from-red-600 to-orange-500 rounded-2xl flex items-center justify-center mb-3 text-white shadow-lg shadow-red-600/30">
@@ -764,13 +759,15 @@ export const Watch = () => {
             </div>
 
             <h3 className="text-lg font-black text-white mb-1">
-              {isArabic ? 'مشاهدة إعلان قصير لفتح حلقتين' : 'Watch Short Ad to Unlock 2 Episodes'}
+              {isUnlockLong
+                ? (isArabic ? 'مشاهدة إعلان قصير لفتح الحلقة' : 'Watch Short Ad to Unlock Episode')
+                : (isArabic ? 'مشاهدة إعلان قصير لفتح حلقتين' : 'Watch Short Ad to Unlock 2 Episodes')}
             </h3>
             
             <p className="text-white/60 text-xs mb-5 leading-relaxed">
-              {isArabic 
-                ? 'شاهد إعلان قصير لتمرير هذه الحلقة والحلقة التالية مجاناً، أو اشترك في VIP لمشاهدة جميع الحلقات بلا إعلانات.' 
-                : 'Watch a quick ad to unlock this episode & the next one free, or activate VIP for zero ads.'}
+              {isUnlockLong
+                ? (isArabic ? 'شاهد إعلان قصير لتمرير هذه الحلقة مجاناً، أو اشترك في VIP لمشاهدة جميع الحلقات بلا إعلانات.' : 'Watch a quick ad to unlock this episode free, or activate VIP for zero ads.')
+                : (isArabic ? 'شاهد إعلان قصير لتمرير هذه الحلقة والحلقة التالية مجاناً، أو اشترك في VIP لمشاهدة جميع الحلقات بلا إعلانات.' : 'Watch a quick ad to unlock this episode & the next one free, or activate VIP for zero ads.')}
             </p>
 
             <div className="flex flex-col gap-2.5 w-full">
@@ -785,7 +782,11 @@ export const Watch = () => {
                 ) : (
                   <>
                     <Tv size={16} />
-                    <span>{isArabic ? 'مشاهدة إعلان (فتح حلقتين مجاناً)' : 'Watch Short Ad (Unlock 2 Ep)'}</span>
+                    <span>
+                      {isUnlockLong
+                        ? (isArabic ? 'مشاهدة إعلان (فتح الحلقة مجاناً)' : 'Watch Short Ad (Unlock Episode)')
+                        : (isArabic ? 'مشاهدة إعلان (فتح حلقتين مجاناً)' : 'Watch Short Ad (Unlock 2 Ep)')}
+                    </span>
                   </>
                 )}
               </button>

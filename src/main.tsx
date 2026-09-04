@@ -1,11 +1,32 @@
 
 // Suppress Telegram CloudStorage warning
 const originalConsoleError = console.error;
-console.error = (...args) => {
-  if (args[0] && typeof args[0] === 'string' && args[0].includes('CloudStorage is not supported')) {
-    return;
+const originalConsoleWarn = console.warn;
+const originalConsoleInfo = console.info;
+const originalConsoleLog = console.log;
+
+const shouldSuppress = (args: any[]) => {
+  if (args[0] && typeof args[0] === 'string' && (args[0].includes('CloudStorage is not supported') || args[0].includes('[Telegram.WebApp] CloudStorage'))) {
+    return true;
   }
+  return false;
+};
+
+console.error = (...args) => {
+  if (shouldSuppress(args)) return;
   originalConsoleError(...args);
+};
+console.warn = (...args) => {
+  if (shouldSuppress(args)) return;
+  originalConsoleWarn(...args);
+};
+console.info = (...args) => {
+  if (shouldSuppress(args)) return;
+  originalConsoleInfo(...args);
+};
+console.log = (...args) => {
+  if (shouldSuppress(args)) return;
+  originalConsoleLog(...args);
 };
 
 import { StrictMode, useState, useEffect } from 'react';
