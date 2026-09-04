@@ -158,6 +158,8 @@ export const Watch = () => {
     };
   }, []);
 
+  const [scrollEndedSignal, setScrollEndedSignal] = useState(0);
+
   const episodes = useMemo(() => {
     if (!movie) return [];
     if (movie.episodes && movie.episodes.length > 0) {
@@ -185,17 +187,20 @@ export const Watch = () => {
   const currentAllowedToPlay = currentEpData && !currentNeedsLongAd && !currentIsLocked;
 
   useEffect(() => {
-    // Immediate pause of EVERYTHING when user starts swiping or target changes
-    setPlayingEpisodeId('');
+    // Immediate pause of EVERYTHING when target changes programmatically
+    setPlayingEpisodeId(prev => {
+      if (prev !== '') return '';
+      return prev;
+    });
 
     if (activeEpisodeId && currentAllowedToPlay) {
       // Debounce the play to ensure user has stopped swiping
       const timeout = setTimeout(() => {
         setPlayingEpisodeId(activeEpisodeId);
-      }, 250);
+      }, 50); // Reduced because handleScroll already debounces
       return () => clearTimeout(timeout);
     }
-  }, [activeEpisodeId, currentAllowedToPlay]);
+  }, [activeEpisodeId, currentAllowedToPlay, scrollEndedSignal]);
 
   const playerSessionRef = useRef({ episodeId: '', generation: 0, triggeredMilestones: new Set<number>() });
   const isCurrentSession = (epId: string, gen: number) => {
@@ -309,32 +314,42 @@ export const Watch = () => {
 
   const currentEpIndex = episodes.findIndex(e => e.id === activeEpisodeId);
   const currentEp = episodes[currentEpIndex] || episodes[0];
-    // High-performance IntersectionObserver for immediate switching
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
 
-    // Use a high-frequency observer to detect crossing the 40% threshold immediately
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (isProgrammaticScrollRef.current) return;
+  const handleScroll = () => {
+    if (isProgrammaticScrollRef.current) return;
+
+    // Immediately pause when user scrolls manually (crucial for iOS)
+    setPlayingEpisodeId(prev => {
+      if (prev !== '') return '';
+      return prev;
+    });
+
+    if (scrollTimeoutRef.current) clearTimeout(scrollTimeoutRef.current);
+    
+    scrollTimeoutRef.current = setTimeout(() => {
+      const container = containerRef.current;
+      if (!container) return;
+
+      const children = Array.from(container.querySelectorAll('.reel-item')) as Element[];
+      let bestEpId = null;
+      let maxVisibleHeight = 0;
+      
+      const containerRect = container.getBoundingClientRect();
+
+      children.forEach((child) => {
+        const rect = child.getBoundingClientRect();
+        const visibleTop = Math.max(containerRect.top, rect.top);
+        const visibleBottom = Math.min(containerRect.bottom, rect.bottom);
+        const visibleHeight = Math.max(0, visibleBottom - visibleTop);
         
-        let bestEpId = null;
-        
-        entries.forEach((entry) => {
-          const epId = entry.target.getAttribute('data-episode-id');
-          if (entry.isIntersecting) {
-            if (entry.intersectionRatio > 0.5) {
-              bestEpId = epId;
-            }
-            // Immediate pause on iOS when scrolling starts (visibility drops below 95%)
-            if (epId === playerSessionRef.current.episodeId && entry.intersectionRatio < 0.95) {
-              setPlayingEpisodeId('');
-            }
-          }
-        });
-        
-        if (bestEpId && bestEpId !== playerSessionRef.current.episodeId) {
+        if (visibleHeight > maxVisibleHeight) {
+          maxVisibleHeight = visibleHeight;
+          bestEpId = child.getAttribute('data-episode-id');
+        }
+      });
+
+      if (bestEpId) {
+        if (bestEpId !== playerSessionRef.current.episodeId) {
           playerSessionRef.current = {
             episodeId: bestEpId,
             generation: playerSessionRef.current.generation + 1,
@@ -342,29 +357,10 @@ export const Watch = () => {
           };
           setActiveEpisodeId(bestEpId);
         }
-      },
-      {
-        root: container,
-        threshold: [0.51, 0.95], // 0.95 for detecting scroll start, 0.51 for active change
+        setScrollEndedSignal(Date.now());
       }
-    );
-
-    // Observe all children
-    const children = Array.from(container.querySelectorAll('.reel-item')) as Element[];
-    children.forEach((child) => observer.observe(child));
-
-    // Fallback: also observe DOM mutations in case elements are added late
-    const mutationObserver = new MutationObserver(() => {
-      const newChildren = Array.from(container.querySelectorAll('.reel-item')) as Element[];
-      newChildren.forEach((child) => observer.observe(child));
-    });
-    mutationObserver.observe(container, { childList: true });
-
-    return () => {
-      observer.disconnect();
-      mutationObserver.disconnect();
-    };
-  }, [episodes]);
+    }, 150);
+  };
 
   return (
     <div onClick={handleScreenTouch}
@@ -415,7 +411,7 @@ export const Watch = () => {
       {/* Vertical Scroll Container */}
       <div 
         ref={containerRef}
-        
+        onScroll={handleScroll}
         className="flex-1 overflow-y-scroll snap-y snap-mandatory hide-scrollbar"
       >
         {episodes.map((ep, idx) => {
