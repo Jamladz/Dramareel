@@ -199,6 +199,7 @@ export const Admin = () => {
               >
                 <option value="English">{t('english', 'English')}</option>
                 <option value="Dubbed">{t('dubbed', 'Dubbed')}</option>
+                <option value="Subtitled">{t('subtitled', 'Subtitled')}</option>
                 <option value="Arabic">{t('arabic', 'Arabic')}</option>
               </select>
             </div>

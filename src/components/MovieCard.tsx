@@ -48,6 +48,11 @@ export const MovieCard: React.FC<MovieCardProps> = ({ movie, featured }) => {
             <span className="px-3 py-1 bg-black/40  text-[10px] font-bold rounded-md uppercase tracking-wider text-white border border-white/10">
               {movie.category} • {movie.releaseYear}
             </span>
+            {(movie.language === 'Dubbed' || movie.language === 'Subtitled') && (
+              <span className={`px-3 py-1 text-[10px] font-bold rounded-md uppercase tracking-wider text-white border backdrop-blur-md shadow-lg ${movie.language === 'Dubbed' ? 'bg-[#0098EA]/80 border-[#0098EA]/50 text-white' : 'bg-purple-600/80 border-purple-400/50'}`}>
+                {t(movie.language.toLowerCase())}
+              </span>
+            )}
             <AnimatedViews baseViews={movie.views} className="text-[10px] text-white font-bold bg-black/40 px-3 py-1 rounded-md border border-white/10" iconSize={12} />
           </div>
           <h2 className="text-4xl font-black text-white leading-none tracking-tighter" onClick={() => navigate(`/movie/${movie.id}`)}>{movie.title.toUpperCase()}</h2>
@@ -92,6 +97,11 @@ export const MovieCard: React.FC<MovieCardProps> = ({ movie, featured }) => {
         <div className="absolute top-2 right-2 px-2 py-1 bg-black/60  rounded-lg text-[10px] font-bold text-yellow-500 flex items-center gap-1 z-20 pointer-events-none">
           ★ {movie.rating}
         </div>
+        {(movie.language === 'Dubbed' || movie.language === 'Subtitled') && (
+          <div className={`absolute top-2 left-2 px-2 py-1 rounded-md text-[9px] font-black tracking-wider text-white z-20 pointer-events-none shadow-md backdrop-blur-md border ${movie.language === 'Dubbed' ? 'bg-[#0098EA]/90 border-[#0098EA]/40' : 'bg-purple-600/90 border-purple-400/40'}`}>
+            {t(movie.language.toLowerCase())}
+          </div>
+        )}
       </div>
       <div>
         <h4 className="text-sm font-bold text-white group-hover:text-red-500 transition-colors truncate">{movie.title}</h4>

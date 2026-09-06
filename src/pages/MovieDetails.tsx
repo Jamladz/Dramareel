@@ -108,9 +108,14 @@ export const MovieDetails = () => {
       {/* Content */}
       <div className="flex-1 flex flex-col px-6 -mt-16 relative z-30 min-h-0">
         <div className="flex-none">
-          <div className="flex items-center gap-2 mb-2">
+          <div className="flex flex-wrap items-center gap-2 mb-2">
             <span className="px-3 py-1 bg-red-600 text-[10px] font-bold rounded-md uppercase tracking-wider text-white">Featured</span>
             <span className="px-3 py-1 bg-white/10  text-[10px] font-bold rounded-md uppercase tracking-wider text-white">{movie.category}</span>
+            {(movie.language === 'Dubbed' || movie.language === 'Subtitled') && (
+              <span className={`px-3 py-1 text-[10px] font-bold rounded-md uppercase tracking-wider text-white shadow-lg border ${movie.language === 'Dubbed' ? 'bg-[#0098EA]/80 border-[#0098EA]/40 text-white' : 'bg-purple-600/80 border-purple-400/40'}`}>
+                {t(movie.language.toLowerCase())}
+              </span>
+            )}
           </div>
           <h1 className="text-3xl sm:text-4xl font-black text-white mb-2 leading-none tracking-tighter line-clamp-2">{movie.title.toUpperCase()}</h1>
           
