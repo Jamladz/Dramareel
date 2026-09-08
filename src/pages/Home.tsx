@@ -118,7 +118,7 @@ export const Home = () => {
         </div>
 
         {/* Weekly Contest Banner */}
-        <div className="px-6 -mb-4 mt-2">
+        <div className="px-6 -mt-5 -mb-6 z-10 relative">
           <button 
             onClick={() => navigate('/weekly-contest')}
             className="w-full relative overflow-hidden bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 rounded-2xl p-4 shadow-lg shadow-amber-500/20 active:scale-95 transition-transform flex items-center justify-between group"
