@@ -137,7 +137,7 @@ export const WeeklyContest: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#050505] text-[#E0E0E0] pb-28 flex flex-col relative" dir={isArabic ? 'rtl' : 'ltr'}>
+    <div className="h-full w-full overflow-y-auto hide-scrollbar bg-[#050505] text-[#E0E0E0] pb-28 flex flex-col relative" dir={isArabic ? 'rtl' : 'ltr'}>
       {/* Top Bar Header */}
       <div className="sticky top-0 z-30 bg-[#0A0A0E]/90 backdrop-blur-xl border-b border-white/10 px-4 py-3.5 flex items-center justify-between">
         <button 

@@ -4,12 +4,13 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '../store';
 import { MovieCard } from '../components/MovieCard';
 import { TopPointsBadge } from '../components/TopPointsBadge';
-import { Play, Search } from 'lucide-react';
+import { Play, Search, Trophy, ChevronRight, ChevronLeft } from 'lucide-react';
 import { fetchMoviesFromDB } from '../services/movieService';
+import { AnimatePresence, motion } from 'motion/react';
 
 export const Home = () => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { movies, setMovies, coins, isVipActive } = useAppStore();
   const [loading, setLoading] = useState(true);
   const [avatar, setAvatar] = useState('https://api.dicebear.com/7.x/avataaars/svg?seed=Felix');
@@ -36,6 +37,17 @@ export const Home = () => {
     loadData();
   }, [setMovies]);
 
+  const [featuredIndex, setFeaturedIndex] = useState(0);
+
+  useEffect(() => {
+    if (movies.length > 1) {
+      const interval = setInterval(() => {
+        setFeaturedIndex((prev) => (prev + 1) % movies.length);
+      }, 5000); // Change every 5 seconds
+      return () => clearInterval(interval);
+    }
+  }, [movies.length]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-[#050505] flex items-center justify-center text-red-600">
@@ -58,7 +70,7 @@ export const Home = () => {
     );
   }
 
-  const featured = movies[0];
+  const featured = movies[featuredIndex] || movies[0];
   const trending = [...movies].sort((a, b) => b.views - a.views);
   const newReleases = [...movies].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
 
@@ -89,9 +101,49 @@ export const Home = () => {
       <div className="flex flex-col gap-8">
         {/* Hero / Featured */}
         <div className="px-6 relative h-[450px]">
-          <div className="h-full w-full">
-            <MovieCard movie={featured} featured />
+          <div className="h-full w-full relative">
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={featured.id}
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.5, ease: "easeInOut" }}
+                className="absolute inset-0 w-full h-full"
+              >
+                <MovieCard movie={featured} featured />
+              </motion.div>
+            </AnimatePresence>
           </div>
+        </div>
+
+        {/* Weekly Contest Banner */}
+        <div className="px-6 -mb-4 mt-2">
+          <button 
+            onClick={() => navigate('/weekly-contest')}
+            className="w-full relative overflow-hidden bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 rounded-2xl p-4 shadow-lg shadow-amber-500/20 active:scale-95 transition-transform flex items-center justify-between group"
+            dir={i18n.language === 'ar' ? 'rtl' : 'ltr'}
+          >
+            <div className="absolute top-0 right-1/2 translate-x-1/2 w-32 h-32 bg-white/20 rounded-full blur-2xl pointer-events-none" />
+            
+            <div className="flex items-center gap-3 relative z-10 text-black text-start">
+              <div className="w-10 h-10 rounded-full bg-black/10 flex items-center justify-center backdrop-blur-sm shrink-0">
+                <Trophy size={20} className="fill-black/80" />
+              </div>
+              <div>
+                <h3 className="font-black text-sm sm:text-base leading-tight">
+                  {i18n.language === 'ar' ? 'المسابقة الأسبوعية للإحالات' : 'Weekly Referral Contest'}
+                </h3>
+                <p className="text-[10px] sm:text-xs font-bold opacity-80 mt-0.5">
+                  {i18n.language === 'ar' ? 'اربح باقات VIP مجاناً الآن!' : 'Win Free VIP Passes Now!'}
+                </p>
+              </div>
+            </div>
+            
+            <div className="w-8 h-8 rounded-full bg-black/10 flex items-center justify-center backdrop-blur-sm shrink-0 relative z-10 text-black group-hover:bg-black/20 transition-colors">
+              {i18n.language === 'ar' ? <ChevronLeft size={18} /> : <ChevronRight size={18} />}
+            </div>
+          </button>
         </div>
 
         {/* Trending Section */}
