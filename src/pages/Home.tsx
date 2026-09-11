@@ -146,21 +146,6 @@ export const Home = () => {
           </button>
         </div>
 
-        {/* Trending Section */}
-        <div className="py-2">
-          <div className="px-6 flex justify-between items-center mb-4">
-            <h3 className="text-xl font-bold text-white tracking-tight">{t('trendingToday')}</h3>
-            <button onClick={() => navigate('/search')} className="text-red-600 text-xs font-bold hover:underline">{t('viewAll', 'View All')}</button>
-          </div>
-          <div className="flex overflow-x-auto gap-4 px-6 pb-4 snap-x hide-scrollbar">
-            {trending.map(movie => (
-              <div key={movie.id} className="snap-start shrink-0">
-                <MovieCard movie={movie} />
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* New Releases Section */}
         <div className="py-2">
           <div className="px-6 flex justify-between items-center mb-4">
@@ -170,6 +155,21 @@ export const Home = () => {
           <div className="flex overflow-x-auto gap-4 px-6 pb-4 snap-x hide-scrollbar">
             {newReleases.map(movie => (
               <div key={`new-${movie.id}`} className="snap-start shrink-0">
+                <MovieCard movie={movie} />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Trending Section */}
+        <div className="py-2">
+          <div className="px-6 flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold text-white tracking-tight">{t('trendingToday')}</h3>
+            <button onClick={() => navigate('/search')} className="text-red-600 text-xs font-bold hover:underline">{t('viewAll', 'View All')}</button>
+          </div>
+          <div className="flex overflow-x-auto gap-4 px-6 pb-4 snap-x hide-scrollbar">
+            {trending.map(movie => (
+              <div key={movie.id} className="snap-start shrink-0">
                 <MovieCard movie={movie} />
               </div>
             ))}

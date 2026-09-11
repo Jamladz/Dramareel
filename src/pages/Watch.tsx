@@ -121,6 +121,21 @@ export const Watch = () => {
     }
   };
 
+  const handleUnlockLongWithCoins = (epId: string) => {
+    if (coins >= 60) {
+      if (spendCoins(60, isArabic ? 'تخطي الفاصل الإعلاني' : 'Skip Ad Break')) {
+        unlockEpisode(epId);
+        setShowUnlockModal(null);
+      }
+    } else {
+      alert(
+        isArabic 
+          ? `⚠️ رصيد نقاطك الحالي (${coins} نقطة) أقل من 60 نقطة.\nيمكنك مشاهدة إعلان قصير مجاناً لتخطي الفاصل الإعلاني، أو كسب المزيد من النقاط عبر الإحالات!` 
+          : `⚠️ Current balance (${coins} coins) is less than 60 coins.\nWatch a short ad for free to skip the ad break, or invite friends to earn coins!`
+      );
+    }
+  };
+
   // Auto-hiding controls timer (4 seconds of no touch)
   const [areControlsVisible, setAreControlsVisible] = useState(true);
   const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -501,10 +516,18 @@ export const Watch = () => {
                                 unlockEpisode(ep.id);
                               }
                             }}
-                            className="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 text-white font-black active:scale-95 transition-all shadow-lg shadow-red-600/20 flex items-center justify-center gap-2"
+                            className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-red-600 to-orange-500 text-white font-black active:scale-95 transition-all shadow-lg shadow-red-600/20 flex items-center justify-center gap-2 mb-3"
                           >
                             {isAdLoading ? <Loader2 size={20} className="animate-spin" /> : <Play size={20} />}
                             <span>{isArabic ? 'شاهد الإعلان وأكمل' : 'Watch Ad & Continue'}</span>
+                          </button>
+
+                          <button
+                            onClick={() => handleUnlockLongWithCoins(ep.id)}
+                            className="w-full py-3 px-6 rounded-2xl bg-gradient-to-r from-amber-500 to-yellow-500 text-black font-black active:scale-95 transition-all shadow-lg flex items-center justify-center gap-2 text-xs"
+                          >
+                            <Gift size={16} />
+                            <span>{isArabic ? 'تخطي الفاصل بـ 60 نقطة' : 'Skip Ad with 60 Coins'}</span>
                           </button>
                         </div>
                       </motion.div>
@@ -814,13 +837,23 @@ export const Watch = () => {
                 )}
               </button>
 
-              {/* Option 2: Coins Unlock (50 Points) */}
+              {/* Option 2: Coins Unlock */}
               <button 
-                onClick={() => handleUnlockWithCoins(showUnlockModal)}
+                onClick={() => {
+                  if (isUnlockLong) {
+                    handleUnlockLongWithCoins(showUnlockModal);
+                  } else {
+                    handleUnlockWithCoins(showUnlockModal);
+                  }
+                }}
                 className="w-full py-3 px-4 rounded-2xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-yellow-300 font-extrabold text-xs active:scale-95 transition-all flex items-center justify-center gap-2"
               >
                 <Gift size={16} />
-                <span>{isArabic ? 'إكمال الفيلم مقابل 50 نقطة' : 'Pay 50 Coins to Continue'}</span>
+                <span>
+                  {isUnlockLong 
+                    ? (isArabic ? 'تخطي الفاصل بـ 60 نقطة' : 'Pay 60 Coins to Skip Ad')
+                    : (isArabic ? 'إكمال الفيلم مقابل 50 نقطة' : 'Pay 50 Coins to Continue')}
+                </span>
               </button>
 
               {/* Option 3: Activate VIP with Points */}
