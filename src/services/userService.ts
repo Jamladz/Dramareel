@@ -22,10 +22,16 @@ export async function getTelegramUsers() {
   }
 }
 
-export async function syncCoinsToFirebase(userId: string, coins: number, name?: string) {
+export async function syncCoinsToFirebase(userId: string, coins: number, name?: string, completedEpisodes?: string[]) {
   try {
     const userRef = doc(db, 'users', userId);
     const snap = await getDoc(userRef);
+    const updateData: any = { coins };
+    if (completedEpisodes) {
+      updateData.completedEpisodes = completedEpisodes;
+      updateData.completedEpisodesCount = completedEpisodes.length;
+    }
+
     if (!snap.exists()) {
       await setDoc(userRef, {
         id: userId,
@@ -34,10 +40,12 @@ export async function syncCoinsToFirebase(userId: string, coins: number, name?: 
         referralsCount: 0,
         earnedReferralCoins: 0,
         claimedMilestones: [],
-        createdAt: Date.now()
+        createdAt: Date.now(),
+        completedEpisodes: completedEpisodes || [],
+        completedEpisodesCount: completedEpisodes ? completedEpisodes.length : 0
       });
     } else {
-      await updateDoc(userRef, { coins });
+      await updateDoc(userRef, updateData);
     }
   } catch (error) {
     console.error('Error syncing coins to firebase:', error);

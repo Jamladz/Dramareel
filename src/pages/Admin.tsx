@@ -16,6 +16,23 @@ export const Admin = () => {
   const [loading, setLoading] = useState(false);
   const [expandedMovieId, setExpandedMovieId] = useState<string | null>(null);
   const [tgUsers, setTgUsers] = useState<any[]>([]);
+  const [expandedUserId, setExpandedUserId] = useState<string | null>(null);
+
+  const getEpisodeDetails = (episodeId: string) => {
+    for (const movie of movies) {
+      if (movie.episodes) {
+        const ep = movie.episodes.find(e => e.id === episodeId);
+        if (ep) {
+          return {
+            movieTitle: movie.title,
+            episodeTitle: ep.title,
+            episodeNumber: ep.episodeNumber
+          };
+        }
+      }
+    }
+    return null;
+  };
 
   // Forms states
   const [showAddMovie, setShowAddMovie] = useState(false);
@@ -481,19 +498,85 @@ export const Admin = () => {
                       <th className="px-4 py-3 text-right">المستخدم</th>
                       <th className="px-4 py-3 text-right">النقاط</th>
                       <th className="px-4 py-3 text-right">الدعوات</th>
+                      <th className="px-4 py-3 text-right">الحلقات المشاهدة</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-white/5">
-                    {tgUsers.map(user => (
-                      <tr key={user.id} className="hover:bg-white/5 transition-colors">
-                        <td className="px-4 py-3 font-bold text-right flex items-center gap-3">
-                          <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`} className="w-8 h-8 rounded-full bg-white/10" alt="avatar" />
-                          {user.name}
-                        </td>
-                        <td className="px-4 py-3 text-amber-400 font-bold text-right">{user.coins || 0}</td>
-                        <td className="px-4 py-3 text-white/60 font-bold text-right">{user.referralsCount || 0}</td>
-                      </tr>
-                    ))}
+                    {tgUsers.map(user => {
+                      const watchedCount = user.completedEpisodesCount || (user.completedEpisodes ? user.completedEpisodes.length : 0);
+                      const isExpanded = expandedUserId === user.id;
+                      return (
+                        <React.Fragment key={user.id}>
+                          <tr 
+                            className="hover:bg-white/5 transition-colors cursor-pointer"
+                            onClick={() => setExpandedUserId(isExpanded ? null : user.id)}
+                          >
+                            <td className="px-4 py-3 font-bold text-right flex items-center gap-3">
+                              <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.id}`} className="w-8 h-8 rounded-full bg-white/10" alt="avatar" />
+                              <div className="flex flex-col text-right">
+                                <span>{user.name}</span>
+                                <span className="text-[10px] text-white/30 font-mono">{user.id}</span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-amber-400 font-bold text-right">
+                              <span className="bg-amber-500/10 border border-amber-500/20 px-2 py-1 rounded-lg">
+                                🪙 {user.coins || 0}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-white/60 font-bold text-right">{user.referralsCount || 0}</td>
+                            <td className="px-4 py-3 text-cyan-400 font-bold text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <span className="bg-cyan-500/10 border border-cyan-500/20 px-2.5 py-1 rounded-lg">
+                                  🎬 {watchedCount} حلقة
+                                </span>
+                                <span className="text-white/40">
+                                  {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                          {isExpanded && (
+                            <tr>
+                              <td colSpan={4} className="bg-[#0c0c0c] px-6 py-4 border-t border-b border-white/5">
+                                <div className="space-y-3">
+                                  <h4 className="text-xs font-bold text-cyan-400 uppercase tracking-wider">
+                                    📋 قائمة الحلقات التي تمت مشاهدتها ({watchedCount}):
+                                  </h4>
+                                  {user.completedEpisodes && user.completedEpisodes.length > 0 ? (
+                                    <div className="grid grid-cols-1 gap-2 max-h-60 overflow-y-auto pr-2 custom-scrollbar">
+                                      {user.completedEpisodes.map((epId: string, idx: number) => {
+                                        const details = getEpisodeDetails(epId);
+                                        return (
+                                          <div key={epId} className="flex justify-between items-center bg-[#141414] border border-white/5 px-3 py-2.5 rounded-xl">
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-white/30 text-xs font-mono">#{idx + 1}</span>
+                                              {details ? (
+                                                <div className="text-right">
+                                                  <span className="text-white font-bold text-xs">{details.movieTitle}</span>
+                                                  <span className="text-white/40 text-[11px] mx-2">|</span>
+                                                  <span className="text-cyan-400 text-xs font-bold">الحلقة {details.episodeNumber}: {details.episodeTitle}</span>
+                                                </div>
+                                              ) : (
+                                                <span className="text-white/50 text-xs font-mono">معرف حلقة غير معروف: {epId}</span>
+                                              )}
+                                            </div>
+                                            <span className="text-[10px] bg-green-500/10 border border-green-500/20 text-green-400 px-2 py-0.5 rounded-md font-bold">
+                                              مكتملة ✓
+                                            </span>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  ) : (
+                                    <p className="text-xs text-white/40 italic">هذا المستخدم لم يكمل مشاهدة أي حلقة بعد.</p>
+                                  )}
+                                </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>

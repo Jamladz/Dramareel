@@ -70,14 +70,15 @@ export default function App() {
   const [userId, setUserId] = useState<string | null>(null);
   const addCoins = useAppStore(s => s.addCoins);
   const coins = useAppStore(s => s.coins);
+  const completedEpisodes = useAppStore(s => s.completedEpisodes);
 
   useEffect(() => {
     if (userId) {
       const tgUser = getTelegramUser();
       const userName = tgUser?.first_name || 'مستخدم';
-      syncCoinsToFirebase(userId, coins, userName);
+      syncCoinsToFirebase(userId, coins, userName, completedEpisodes);
     }
-  }, [coins, userId]);
+  }, [coins, userId, completedEpisodes]);
 
   useEffect(() => {
     // Disable copy on non-input elements
