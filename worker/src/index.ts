@@ -1,6 +1,7 @@
 export interface Env {
   TELEGRAM_BOT_TOKEN: string;
   FIREBASE_PROJECT_ID: string;
+  FIREBASE_DATABASE_ID: string;
 }
 
 export default {
@@ -54,8 +55,9 @@ export default {
 };
 
 async function processNotifications(env: Env, movieId: string, movieTitle: string, movieDescription: string, movieImage: string, adminToken: string) {
-  const projectId = env.FIREBASE_PROJECT_ID || 'ai-studio-cineflow-1409744e-c8c4-4b03-b6b2-6884fbb3c81a';
-  const firestoreBaseUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/(default)/documents`;
+  const projectId = env.FIREBASE_PROJECT_ID || 'gen-lang-client-0163667078';
+  const databaseId = env.FIREBASE_DATABASE_ID || 'ai-studio-cineflow-1409744e-c8c4-4b03-b6b2-6884fbb3c81a';
+  const firestoreBaseUrl = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents`;
   
   try {
     // 1. Fetch users from Firestore
