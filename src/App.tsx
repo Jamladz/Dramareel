@@ -104,9 +104,15 @@ export default function App() {
       tg.ready();
       tg.expand();
       
-      // Request write access to send notifications
+      // Request write access to send notifications ONLY if not already granted
       try {
-        tg.requestWriteAccess();
+        const hasWriteAccess = tg.initDataUnsafe?.user?.allows_write_to_pm;
+        if (!hasWriteAccess && typeof tg.requestWriteAccess === 'function') {
+          // Delay slightly to ensure UI is ready
+          setTimeout(() => {
+            tg.requestWriteAccess();
+          }, 1000);
+        }
       } catch (e) {
         console.warn("Write access request not supported", e);
       }

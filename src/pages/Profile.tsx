@@ -589,6 +589,28 @@ export const Profile = () => {
         <div className="w-full">
            <h3 className="text-xs text-white/50 font-bold mb-3 uppercase tracking-wider text-start px-1">{t('settings', 'Settings')}</h3>
            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {!(window as any).Telegram?.WebApp?.initDataUnsafe?.user?.allows_write_to_pm && (
+                <button 
+                  onClick={() => {
+                    try {
+                      if ((window as any).Telegram?.WebApp?.requestWriteAccess) {
+                        (window as any).Telegram.WebApp.requestWriteAccess();
+                      }
+                    } catch (e) {
+                      console.error("Write access error", e);
+                    }
+                  }}
+                  className="bg-[#111111] border border-white/5 p-4 rounded-2xl flex items-center justify-between active:opacity-70 transition-opacity w-full"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center flex-none">
+                      <span className="text-green-500 text-lg">🔔</span>
+                    </div>
+                    <span className="font-bold text-sm text-white">{isArabic ? 'تفعيل الإشعارات' : 'Enable Notifications'}</span>
+                  </div>
+                </button>
+              )}
+              
               <button 
                 onClick={() => i18n.changeLanguage(i18n.language === 'en' ? 'ar' : 'en')}
                 className="bg-[#111111] border border-white/5 p-4 rounded-2xl flex items-center justify-between active:opacity-70 transition-opacity w-full"
