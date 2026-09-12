@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Plus, Trash2, Edit3, Image as ImageIcon, Film, ChevronDown, ChevronUp } from 'lucide-react';
-import { fetchMoviesFromDB, addMovieToDB, deleteMovieFromDB, addEpisodeToMovieDB, deleteEpisodeFromMovieDB, updateMovieInDB } from '../services/movieService';
+import { fetchMoviesFromDB, addMovieToDB, deleteMovieFromDB, addEpisodeToMovieDB, deleteEpisodeFromMovieDB, updateMovieInDB, triggerMovieNotification, getNotificationStats } from '../services/movieService';
 import { Movie, Episode } from '../types';
 import { useAppStore } from '../store';
 import { parseVideoUrl, cleanVideoUrlInput } from '../utils/videoUtils';
@@ -52,6 +52,8 @@ export const Admin = () => {
   const [testVideoModalUrl, setTestVideoModalUrl] = useState<string | null>(null);
 
   const [movieToDelete, setMovieToDelete] = useState<string | null>(null);
+  const [sendNotification, setSendNotification] = useState(true);
+  const [notificationStats, setNotificationStats] = useState<Record<string, { sent: number; failed: number; blocked: number }>>({});
 
   useEffect(() => {
     const checkAuth = () => {
@@ -92,6 +94,13 @@ export const Admin = () => {
     try {
       const data = await fetchMoviesFromDB();
       setMovies(data);
+      
+      // Fetch stats for all movies
+      const statsMap: Record<string, any> = {};
+      await Promise.all(data.map(async (m) => {
+        statsMap[m.id] = await getNotificationStats(m.id);
+      }));
+      setNotificationStats(statsMap);
     } catch (e) {
       console.error(e);
     }
@@ -118,6 +127,11 @@ export const Admin = () => {
         createdAt: Date.now()
       };
       await addMovieToDB(movie);
+      
+      if (sendNotification) {
+        // Trigger notification Worker in background
+        triggerMovieNotification(movie);
+      }
     }
     
     setShowAddMovie(false);
@@ -228,6 +242,22 @@ export const Admin = () => {
               type="text" placeholder={t('categoryHint', 'Category (e.g. Action)')} value={newMovie.category} onChange={e => setNewMovie({...newMovie, category: e.target.value})}
               className="w-full bg-[#1A1A1A] border border-white/10 p-3 rounded-xl text-sm"
             />
+            
+            {!editingMovieId && (
+              <div className="flex items-center gap-3 bg-[#161616] border border-white/10 p-3 rounded-xl">
+                <input
+                  type="checkbox"
+                  id="sendNotification"
+                  checked={sendNotification}
+                  onChange={e => setSendNotification(e.target.checked)}
+                  className="w-4 h-4 rounded bg-[#111] border-white/20 text-red-500 focus:ring-red-500/50 focus:ring-offset-0"
+                />
+                <label htmlFor="sendNotification" className="text-xs font-bold text-white/90">
+                  إرسال إشعار للمستخدمين عند الإضافة (Enable New Movie Notifications)
+                </label>
+              </div>
+            )}
+
             <button onClick={handleAddMovie} className="w-full bg-red-600 p-3 rounded-xl font-bold uppercase tracking-widest text-xs">
               {editingMovieId ? t('saveChanges', 'Save Changes') : t('saveMovie', 'Save Movie')}
             </button>
@@ -405,6 +435,22 @@ export const Admin = () => {
                   <div className="flex-1">
                     <h3 className="font-bold text-sm truncate">{movie.title}</h3>
                     <p className="text-xs text-white/40 mb-2">{movie.episodes?.length || 0} {t('episodes', 'Episodes')}</p>
+                    
+                    {/* Notification Stats */}
+                    {notificationStats[movie.id] && (
+                      <div className="flex gap-2 mb-3 text-[10px] font-mono">
+                        <span className="bg-green-500/10 text-green-400 border border-green-500/20 px-2 py-0.5 rounded">
+                          ✅ Sent: {notificationStats[movie.id].sent}
+                        </span>
+                        <span className="bg-red-500/10 text-red-400 border border-red-500/20 px-2 py-0.5 rounded">
+                          ❌ Failed: {notificationStats[movie.id].failed}
+                        </span>
+                        <span className="bg-orange-500/10 text-orange-400 border border-orange-500/20 px-2 py-0.5 rounded">
+                          🚫 Blocked: {notificationStats[movie.id].blocked}
+                        </span>
+                      </div>
+                    )}
+
                     <div className="flex gap-2 mt-auto">
                       <button onClick={() => {
                         setEditingEpisodeId(null);

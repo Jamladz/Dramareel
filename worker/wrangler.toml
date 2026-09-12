@@ -1,0 +1,7 @@
+name = "dramareel-notifier"
+main = "src/index.ts"
+compatibility_date = "2024-03-20"
+
+# [vars]
+# FIREBASE_PROJECT_ID = "ai-studio-cineflow-1409744e-c8c4-4b03-b6b2-6884fbb3c81a"
+# TELEGRAM_BOT_TOKEN = "..." (set via wrangler secret put)

@@ -22,7 +22,7 @@ export async function getTelegramUsers() {
   }
 }
 
-export async function syncCoinsToFirebase(userId: string, coins: number, name?: string, completedEpisodes?: string[]) {
+export async function syncCoinsToFirebase(userId: string, coins: number, name?: string, completedEpisodes?: string[], writeAccessGranted?: boolean) {
   try {
     const userRef = doc(db, 'users', userId);
     const snap = await getDoc(userRef);
@@ -30,6 +30,9 @@ export async function syncCoinsToFirebase(userId: string, coins: number, name?: 
     if (completedEpisodes) {
       updateData.completedEpisodes = completedEpisodes;
       updateData.completedEpisodesCount = completedEpisodes.length;
+    }
+    if (writeAccessGranted !== undefined) {
+      updateData.writeAccessGranted = writeAccessGranted;
     }
 
     if (!snap.exists()) {
@@ -42,7 +45,8 @@ export async function syncCoinsToFirebase(userId: string, coins: number, name?: 
         claimedMilestones: [],
         createdAt: Date.now(),
         completedEpisodes: completedEpisodes || [],
-        completedEpisodesCount: completedEpisodes ? completedEpisodes.length : 0
+        completedEpisodesCount: completedEpisodes ? completedEpisodes.length : 0,
+        writeAccessGranted: writeAccessGranted || false
       });
     } else {
       await updateDoc(userRef, updateData);

@@ -76,7 +76,9 @@ export default function App() {
     if (userId) {
       const tgUser = getTelegramUser();
       const userName = tgUser?.first_name || 'مستخدم';
-      syncCoinsToFirebase(userId, coins, userName, completedEpisodes);
+      const tg = (window as any).Telegram?.WebApp;
+      const writeAccessGranted = tg?.initDataUnsafe?.user?.allows_write_to_pm || false;
+      syncCoinsToFirebase(userId, coins, userName, completedEpisodes, writeAccessGranted);
     }
   }, [coins, userId, completedEpisodes]);
 
@@ -94,11 +96,33 @@ export default function App() {
     // Set theme based on Telegram settings or force dark
     document.documentElement.classList.add('dark');
     
+    let isDeepLinkToMovie = false;
+    
     // Telegram Web App configurations
     if ((window as any).Telegram?.WebApp) {
       const tg = (window as any).Telegram.WebApp;
       tg.ready();
       tg.expand();
+      
+      // Request write access to send notifications
+      try {
+        tg.requestWriteAccess();
+      } catch (e) {
+        console.warn("Write access request not supported", e);
+      }
+      
+      // Handle Deep Link
+      const startParam = tg.initDataUnsafe?.start_param;
+      if (startParam && startParam.startsWith('movie_')) {
+        const movieId = startParam.replace('movie_', '');
+        // We defer navigation until router is mounted
+        setTimeout(() => {
+          if (window.location.pathname === '/') {
+            window.location.href = `/movie/${movieId}`;
+          }
+        }, 500);
+        isDeepLinkToMovie = true;
+      }
       
       if (typeof tg.requestFullscreen === 'function') {
         try {

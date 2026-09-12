@@ -1,5 +1,5 @@
-import { collection, getDocs, doc, setDoc, deleteDoc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
-import { db } from '../firebase';
+import { collection, getDocs, query, where, doc, setDoc, deleteDoc, updateDoc, arrayUnion, arrayRemove, getCountFromServer } from 'firebase/firestore';
+import { db, auth } from '../firebase';
 import { Movie, Episode } from '../types';
 
 const COLLECTION_NAME = 'movies';
@@ -33,4 +33,56 @@ export const deleteEpisodeFromMovieDB = async (movieId: string, episode: Episode
   await updateDoc(movieRef, {
     episodes: arrayRemove(episode)
   });
+};
+
+export const getNotificationStats = async (movieId: string) => {
+  try {
+    const notifsRef = collection(db, 'notifications');
+    const [sentSnap, failedSnap, blockedSnap] = await Promise.all([
+      getCountFromServer(query(notifsRef, where('movieId', '==', movieId), where('status', '==', 'sent'))),
+      getCountFromServer(query(notifsRef, where('movieId', '==', movieId), where('status', '==', 'failed'))),
+      getCountFromServer(query(notifsRef, where('movieId', '==', movieId), where('status', '==', 'blocked')))
+    ]);
+    
+    return {
+      sent: sentSnap.data().count,
+      failed: failedSnap.data().count,
+      blocked: blockedSnap.data().count
+    };
+  } catch (error) {
+    console.error('Error fetching notification stats:', error);
+    return { sent: 0, failed: 0, blocked: 0 };
+  }
+};
+
+export const triggerMovieNotification = async (movie: Movie) => {
+  try {
+    const user = auth.currentUser;
+    if (!user) {
+      console.error('No admin user found to trigger notification');
+      return false;
+    }
+    
+    const token = await user.getIdToken();
+    const workerUrl = (import.meta as any).env.VITE_WORKER_URL || 'https://dramareel-notifier.sekanedrmessaif.workers.dev/notify';
+    
+    const res = await fetch(workerUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        movieId: movie.id,
+        movieTitle: movie.title,
+        movieDescription: movie.description,
+        movieImage: movie.coverImage,
+        adminToken: token
+      })
+    });
+    
+    return res.ok;
+  } catch (error) {
+    console.error('Error triggering notification:', error);
+    return false;
+  }
 };
