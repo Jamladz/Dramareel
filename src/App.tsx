@@ -104,14 +104,34 @@ export default function App() {
       tg.ready();
       tg.expand();
       
-      // Request write access to send notifications ONLY if not already granted
+      // Request write access to send notifications ONLY if not already granted and not requested before
       try {
         const hasWriteAccess = tg.initDataUnsafe?.user?.allows_write_to_pm;
-        if (!hasWriteAccess && typeof tg.requestWriteAccess === 'function') {
+        const hasRequestedBefore = localStorage.getItem('dramareel_write_access_requested');
+        
+        if (!hasWriteAccess && !hasRequestedBefore && typeof tg.requestWriteAccess === 'function') {
+          // Mark as requested so we don't spam the user on next reload
+          localStorage.setItem('dramareel_write_access_requested', 'true');
           // Delay slightly to ensure UI is ready
           setTimeout(() => {
             tg.requestWriteAccess();
           }, 1000);
+        }
+        
+        // Listen for write access request response
+        if (typeof tg.onEvent === 'function') {
+          tg.onEvent('writeAccessRequested', (data: any) => {
+            if (data.status === 'allowed') {
+              // Update Firebase right away if userId is set
+              if (auth.currentUser) {
+                const currentId = getCurrentUserId(auth.currentUser.uid);
+                const tgUser = getTelegramUser();
+                const userName = tgUser?.first_name || 'مستخدم';
+                // Using current state values might be slightly stale, but syncCoinsToFirebase merges data
+                syncCoinsToFirebase(currentId, useAppStore.getState().coins, userName, useAppStore.getState().completedEpisodes, true);
+              }
+            }
+          });
         }
       } catch (e) {
         console.warn("Write access request not supported", e);
