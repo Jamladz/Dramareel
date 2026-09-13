@@ -26,13 +26,19 @@ import { WeeklyContest } from './pages/WeeklyContest';
 // Initialization
 import './i18n';
 
+import { fetchMoviesFromDB } from './services/movieService';
+
 // Main App component
 const AnimatedRoutes = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  const deepLinkProcessed = React.useRef(false);
   
   useEffect(() => {
     // Handle Telegram Deep Link for movies safely inside the router context
+    if (deepLinkProcessed.current) return;
+    deepLinkProcessed.current = true;
+
     const tg = (window as any).Telegram?.WebApp;
     if (tg?.initDataUnsafe?.start_param) {
       const startParam = tg.initDataUnsafe.start_param;
@@ -85,11 +91,24 @@ const AnimatedRoutes = () => {
 
 export default function App() {
   const [isAuthReady, setIsAuthReady] = useState(false);
+  const [moviesLoaded, setMoviesLoaded] = useState(false);
   const [referralBonusToast, setReferralBonusToast] = useState<number | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const addCoins = useAppStore(s => s.addCoins);
   const coins = useAppStore(s => s.coins);
   const completedEpisodes = useAppStore(s => s.completedEpisodes);
+  const setMovies = useAppStore(s => s.setMovies);
+
+  // Global Data Fetch
+  useEffect(() => {
+    fetchMoviesFromDB().then((data) => {
+      setMovies(data);
+    }).catch(err => {
+      console.error("Error fetching movies", err);
+    }).finally(() => {
+      setMoviesLoaded(true);
+    });
+  }, [setMovies]);
 
   useEffect(() => {
     if (userId) {
@@ -213,7 +232,7 @@ export default function App() {
     };
   }, [addCoins]);
 
-  if (!isAuthReady) {
+  if (!isAuthReady || !moviesLoaded) {
     return (
       <div className="min-h-screen bg-[#050505] flex items-center justify-center text-red-600 font-bold">
         <div className="flex flex-col items-center gap-3">

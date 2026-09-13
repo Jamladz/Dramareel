@@ -25,6 +25,10 @@ export const Home = () => {
 
   useEffect(() => {
     const loadData = async () => {
+      if (movies.length > 0) {
+        setLoading(false);
+        return;
+      }
       try {
         const data = await fetchMoviesFromDB();
         setMovies(data);
@@ -35,7 +39,7 @@ export const Home = () => {
       }
     };
     loadData();
-  }, [setMovies]);
+  }, [setMovies, movies.length]);
 
   const [featuredIndex, setFeaturedIndex] = useState(0);
 

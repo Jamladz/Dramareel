@@ -52,7 +52,11 @@ export const MovieDetails = () => {
         <div className="flex justify-between items-center p-4">
           <button 
             onClick={() => {
-              navigate('/', { replace: true });
+              if (window.history.state && window.history.state.idx > 0) {
+                navigate(-1);
+              } else {
+                navigate('/', { replace: true });
+              }
             }} 
             className="w-10 h-10 bg-black/40 hover:bg-black/60 rounded-full flex items-center justify-center text-white backdrop-blur-md transition-colors"
           >
