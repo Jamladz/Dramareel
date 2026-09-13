@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { signInAnonymously } from 'firebase/auth';
 import { auth } from './firebase';
 import { processReferral, getCurrentUserId, getTelegramUser } from './services/referralService';
-import { syncCoinsToFirebase } from './services/userService';
+import { syncCoinsToFirebase, updateTelegramWriteAccess } from './services/userService';
 import { useAppStore } from './store';
 
 // Components
@@ -121,6 +121,23 @@ export default function App() {
   }, [coins, userId, completedEpisodes]);
 
   useEffect(() => {
+    if (userId) {
+      const tg = (window as any).Telegram?.WebApp;
+      const allowsWriteToPm = tg?.initDataUnsafe?.user?.allows_write_to_pm;
+      if (allowsWriteToPm) {
+        updateTelegramWriteAccess(userId, 'allowed', true).then((res) => {
+          if (res.success && res.rewarded) {
+            addCoins(100, 'تفعيل إشعارات تيليجرام');
+            console.log("Auto-rewarded user with 100 points for pre-existing write access.");
+          }
+        }).catch(err => {
+          console.error("Error auto-syncing write access:", err);
+        });
+      }
+    }
+  }, [userId, addCoins]);
+
+  useEffect(() => {
     // Disable copy on non-input elements
     const preventCopy = (e: ClipboardEvent) => {
       const target = e.target as HTMLElement;
@@ -158,13 +175,22 @@ export default function App() {
         if (typeof tg.onEvent === 'function') {
           tg.onEvent('writeAccessRequested', (data: any) => {
             if (data.status === 'allowed') {
-              // Update Firebase right away if userId is set
               if (auth.currentUser) {
                 const currentId = getCurrentUserId(auth.currentUser.uid);
-                const tgUser = getTelegramUser();
-                const userName = tgUser?.first_name || 'مستخدم';
-                // Using current state values might be slightly stale, but syncCoinsToFirebase merges data
-                syncCoinsToFirebase(currentId, useAppStore.getState().coins, userName, useAppStore.getState().completedEpisodes, true);
+                updateTelegramWriteAccess(currentId, 'allowed', true).then((res) => {
+                  if (res.success && res.rewarded) {
+                    addCoins(100, 'تفعيل إشعارات تيليجرام');
+                  }
+                }).catch(err => {
+                  console.error("Error setting write access:", err);
+                });
+              }
+            } else if (data.status === 'cancelled') {
+              if (auth.currentUser) {
+                const currentId = getCurrentUserId(auth.currentUser.uid);
+                updateTelegramWriteAccess(currentId, 'denied', false).catch(err => {
+                  console.error("Error setting denied write access:", err);
+                });
               }
             }
           });
