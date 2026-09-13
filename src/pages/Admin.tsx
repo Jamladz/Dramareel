@@ -11,7 +11,8 @@ import { getTelegramUsers } from '../services/userService';
 
 export const Admin = () => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const isArabic = i18n.language === 'ar';
   const { movies, setMovies } = useAppStore();
   const [loading, setLoading] = useState(false);
   const [expandedMovieId, setExpandedMovieId] = useState<string | null>(null);
@@ -54,6 +55,7 @@ export const Admin = () => {
   const [movieToDelete, setMovieToDelete] = useState<string | null>(null);
   const [sendNotification, setSendNotification] = useState(true);
   const [notificationStats, setNotificationStats] = useState<Record<string, { sent: number; failed: number; blocked: number }>>({});
+  const [notifyingMovieId, setNotifyingMovieId] = useState<string | null>(null);
 
   useEffect(() => {
     const checkAuth = () => {
@@ -472,6 +474,38 @@ export const Admin = () => {
                       </button>
                       <button onClick={() => setMovieToDelete(movie.id)} className="bg-red-600/20 text-red-500 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 hover:bg-red-600/30 transition-colors">
                         <Trash2 size={12} />
+                      </button>
+                      <button 
+                        onClick={async () => {
+                          if (notifyingMovieId) return;
+                          const confirmMsg = isArabic 
+                            ? `هل أنت متأكد من رغبتك في إرسال إشعار بفيلم "${movie.title}" لجميع المستخدمين الذين سمحوا للبوت بمراسلتهم؟` 
+                            : `Are you sure you want to send a notification for "${movie.title}" to all users who allowed the bot to message them?`;
+                          if (confirm(confirmMsg)) {
+                            setNotifyingMovieId(movie.id);
+                            const success = await triggerMovieNotification(movie);
+                            if (success) {
+                              alert(isArabic ? 'تمت جدولة إرسال الإشعارات بنجاح!' : 'Notifications scheduled successfully!');
+                              // Reload stats
+                              try {
+                                const stats = await getNotificationStats(movie.id);
+                                setNotificationStats(prev => ({
+                                  ...prev,
+                                  [movie.id]: stats
+                                }));
+                              } catch (e) {
+                                console.error(e);
+                              }
+                            } else {
+                              alert(isArabic ? 'حدث خطأ أثناء محاولة إرسال الإشعارات.' : 'Error sending notifications.');
+                            }
+                            setNotifyingMovieId(null);
+                          }
+                        }}
+                        disabled={notifyingMovieId !== null}
+                        className="bg-amber-500/20 text-amber-400 px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center gap-1 hover:bg-amber-500/30 transition-colors disabled:opacity-50"
+                      >
+                        {notifyingMovieId === movie.id ? '⌛...' : '📢'}
                       </button>
                       <button 
                         onClick={() => setExpandedMovieId(expandedMovieId === movie.id ? null : movie.id)}
