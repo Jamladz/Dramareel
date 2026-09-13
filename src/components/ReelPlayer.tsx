@@ -346,10 +346,16 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, playerSes
       lastTapRef.current = { time: 0, side: 'center' };
     } else {
       lastTapRef.current = { time: now, side };
-      tapTimeoutRef.current = setTimeout(() => {
-        // Single tap anywhere -> Let it bubble up to toggle UI controls.
-        tapTimeoutRef.current = null;
-      }, 300);
+      if (!isPlaying) {
+        // iOS Safari Fix: If paused, play IMMEDIATELY to avoid losing user-gesture token.
+        togglePlay();
+      } else {
+        tapTimeoutRef.current = setTimeout(() => {
+          // Single tap anywhere -> Let it bubble up to toggle UI controls.
+          tapTimeoutRef.current = null;
+          togglePlay();
+        }, 300);
+      }
     }
   };
 
@@ -461,6 +467,7 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, playerSes
     >
       <video preload="auto"
         ref={videoRef}
+        webkit-playsinline="true"
         className="w-full h-full object-cover"
         muted={isMuted}
         onTimeUpdate={handleTimeUpdate}

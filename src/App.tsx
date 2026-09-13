@@ -42,7 +42,7 @@ const AnimatedRoutes = () => {
         if (movieId) {
           // Avoid navigating if we are already on the movie page
           if (!window.location.pathname.startsWith('/movie/')) {
-            navigate(`/movie/${movieId}`, { replace: true });
+            navigate(`/movie/${movieId}`);
           }
         }
       }

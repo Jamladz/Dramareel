@@ -346,10 +346,6 @@ export const Watch = () => {
             if (entry.intersectionRatio > 0.5) {
               bestEpId = epId;
             }
-            // Immediate pause on iOS when scrolling starts (visibility drops below 95%)
-            if (epId === playerSessionRef.current.episodeId && entry.intersectionRatio < 0.95) {
-              setPlayingEpisodeId('');
-            }
           }
         });
         
@@ -547,7 +543,7 @@ export const Watch = () => {
                   <ReelPlayer 
                     url={ep.videoUrl} 
                     isActive={isCurrentActive}
-                    forcePause={playingEpisodeId !== ep.id || !isAppVisible}
+                    forcePause={playingEpisodeId !== ep.id}
                     shouldLoad={isNearActive}
                     duration={ep.duration}
                     isUIVisible={areControlsVisible}
