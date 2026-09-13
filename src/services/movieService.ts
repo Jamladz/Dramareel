@@ -64,7 +64,10 @@ export const triggerMovieNotification = async (movie: Movie) => {
     }
     
     const token = await user.getIdToken();
-    const workerUrl = (import.meta as any).env.VITE_WORKER_URL || 'https://dramareel1.sekanedrmessaif.workers.dev/notify';
+    const baseUrl = window.location.origin.includes('workers.dev') 
+      ? window.location.origin 
+      : 'https://dramareel.sekanedrmessaif.workers.dev';
+    const workerUrl = (import.meta as any).env.VITE_WORKER_URL || `${baseUrl}/notify`;
     
     const res = await fetch(workerUrl, {
       method: 'POST',
