@@ -186,7 +186,7 @@ export const Admin = () => {
   return (
     <div className="bg-[#050505] h-full w-full overflow-hidden text-white flex flex-col">
       <div className="flex-none p-6 flex items-center gap-4 bg-[#1A1A1A] border-b border-white/5 z-50">
-        <button onClick={() => navigate(-1)} className="text-white hover:text-red-500 transition">
+        <button onClick={() => navigate('/')} className="text-white hover:text-red-500 transition">
           <ArrowLeft size={24} />
         </button>
         <h1 className="text-xl font-black uppercase tracking-widest">{t('adminPanel', 'Admin Panel')}</h1>

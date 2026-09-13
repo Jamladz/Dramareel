@@ -511,6 +511,8 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, playerSes
       {(isUIVisible || (!isPlaying && isReady)) && isActive && !showControlIcon && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
           <button 
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
             onClick={(e) => { e.stopPropagation(); togglePlay(); }}
             className={`w-14 h-14 rounded-full flex items-center justify-center text-white shadow-[0_0_30px_rgba(0,0,0,0.5)] backdrop-blur-sm transition-all active:scale-95 pointer-events-auto border ${!isPlaying ? 'bg-red-600/90 border-red-500/50 shadow-[0_0_30px_rgba(229,9,20,0.4)]' : 'bg-black/50 border-white/20'}`}
           >
@@ -523,6 +525,8 @@ export const ReelPlayer: React.FC<ReelPlayerProps> = ({ url, isActive, playerSes
       {isActive && (
         <div className="absolute top-[calc(5.5rem+var(--tg-safe-area-inset-top,env(safe-area-inset-top,0px)))] left-3.5 right-2 z-30 flex items-center justify-end pointer-events-none">
           <button
+            onPointerDown={(e) => e.stopPropagation()}
+            onPointerUp={(e) => e.stopPropagation()}
             onClick={toggleMute}
             className="w-10 h-10 bg-black/60 border border-white/20 rounded-full flex items-center justify-center text-white backdrop-blur-xl active:scale-90 hover:border-white/40 transition-all shadow-lg pointer-events-auto"
           >
