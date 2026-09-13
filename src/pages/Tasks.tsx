@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Gift, Tv, CheckCircle, Clock, Film, Users, Share2, Flame, Coins, Globe } from 'lucide-react';
 import { useAppStore } from '../store';
-import { getUserData, claimMonetagReward, claimSiteVisitReward, claimHomeScreenReward, claimRewardAd, getTaskStatus, completeTelegramTask } from '../services/userService';
+import { getUserData, claimMonetagReward, claimSiteVisitReward, claimHomeScreenReward, claimRewardAd, getTaskStatus, completeTelegramTask, updateTelegramWriteAccess } from '../services/userService';
 import { getCurrentUserId } from '../services/referralService';
 import { showAdsgramAd, ADSGRAM_BLOCKS } from '../services/adsgramService';
 import { ReferralHub } from '../components/ReferralHub';
@@ -55,6 +55,11 @@ export const Tasks = () => {
   // Referral Modal State
   const [showReferralModal, setShowReferralModal] = useState(false);
 
+  // Telegram Write Access State
+  const [telegramWriteAccessStatus, setTelegramWriteAccessStatus] = useState<'allowed' | 'denied' | 'unknown'>('unknown');
+  const [isWriteAccessCompleted, setIsWriteAccessCompleted] = useState(false);
+  const [isWriteAccessLoading, setIsWriteAccessLoading] = useState(false);
+
   useEffect(() => {
     const fetchUserData = async () => {
       const uid = getCurrentUserId();
@@ -76,12 +81,18 @@ export const Tasks = () => {
           } else {
             setAdsWatchedCount(0);
           }
+          if (data.telegramWriteAccessStatus) {
+            setTelegramWriteAccessStatus(data.telegramWriteAccessStatus);
+          }
         }
         
         const hasJoined = await getTaskStatus(uid, 'join_channel');
         if (hasJoined && !hasJoinedTelegram) {
            setJoinedTelegram();
         }
+
+        const writeAccessTask = await getTaskStatus(uid, 'telegram_write_access');
+        setIsWriteAccessCompleted(writeAccessTask);
       }
     };
     fetchUserData();
@@ -334,6 +345,60 @@ export const Tasks = () => {
     }, 5000);
   };
 
+  const handleTelegramWriteAccess = () => {
+    if (isWriteAccessLoading || isWriteAccessCompleted) return;
+    setIsWriteAccessLoading(true);
+
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg?.requestWriteAccess) {
+      try {
+        tg.requestWriteAccess(async (allowed: boolean) => {
+          const status = allowed ? 'allowed' : 'denied';
+          const uid = getCurrentUserId();
+          if (uid) {
+            const res = await updateTelegramWriteAccess(uid, status, true);
+            if (res.success) {
+              setTelegramWriteAccessStatus(status);
+              if (res.rewarded) {
+                setIsWriteAccessCompleted(true);
+                addCoins(100, isArabic ? 'تفعيل إشعارات تيليجرام' : 'Enable Telegram Notifications');
+                alert(isArabic ? '🎉 تم تفعيل الإشعارات وحصلت على 100 نقطة!' : '🎉 Notifications enabled and you got 100 points!');
+              } else {
+                alert(isArabic ? 'تم تفعيل الإشعارات بنجاح!' : 'Notifications enabled successfully!');
+              }
+            } else {
+              alert(isArabic ? 'حدث خطأ أثناء حفظ الإعدادات' : 'Error saving settings');
+            }
+          }
+          setIsWriteAccessLoading(false);
+        });
+      } catch (e) {
+        console.error("Write access error:", e);
+        setIsWriteAccessLoading(false);
+      }
+    } else {
+      const uid = getCurrentUserId();
+      if (uid) {
+        setTimeout(async () => {
+          const res = await updateTelegramWriteAccess(uid, 'allowed', true);
+          if (res.success) {
+            setTelegramWriteAccessStatus('allowed');
+            if (res.rewarded) {
+              setIsWriteAccessCompleted(true);
+              addCoins(100, isArabic ? 'تفعيل إشعارات تيليجرام' : 'Enable Telegram Notifications');
+              alert(isArabic ? '🎉 (المحاكي) تم تفعيل الإشعارات وحصلت على 100 نقطة!' : '🎉 (Sandbox) Notifications enabled and you got 100 points!');
+            } else {
+              alert('(المحاكي) تم تفعيل الإشعارات!');
+            }
+          }
+          setIsWriteAccessLoading(false);
+        }, 1000);
+      } else {
+        setIsWriteAccessLoading(false);
+      }
+    }
+  };
+
   // Modern clean task item component
   const TaskItem = ({ 
     icon, 
@@ -523,6 +588,19 @@ export const Tasks = () => {
             actionText={isArabic ? 'انضمام' : 'Join'}
             onAction={handleJoinTelegram}
             completed={hasJoinedTelegram}
+          />
+
+          <TaskItem 
+            icon={
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            }
+            title={isArabic ? 'تفعيل إشعارات الأفلام الجديدة' : 'Enable New Movie Notifications'}
+            subtitle={isArabic ? 'احصل على إشعارات بالأفلام الجديدة على تيليجرام' : 'Get notified of new movies on Telegram'}
+            reward="100"
+            actionText={isArabic ? 'تفعيل' : 'Enable'}
+            onAction={handleTelegramWriteAccess}
+            loading={isWriteAccessLoading}
+            completed={isWriteAccessCompleted || telegramWriteAccessStatus === 'allowed'}
           />
         </div>
       </div>

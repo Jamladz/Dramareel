@@ -56,7 +56,11 @@
         "referralsCount": { "type": "number" },
         "earnedReferralCoins": { "type": "number" },
         "claimedMilestones": { "type": "array", "items": { "type": "string", "maxLength": 50 } },
-        "createdAt": { "type": "number" }
+        "createdAt": { "type": "number" },
+        "telegramWriteAccessStatus": { "type": "string", "maxLength": 20 },
+        "writeAccessGranted": { "type": "boolean" },
+        "writeAccessRequestedAt": { "type": "number" },
+        "writeAccessUpdatedAt": { "type": "number" }
       },
       "required": ["id"]
     },

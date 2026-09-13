@@ -284,3 +284,68 @@ export async function claimRewardAd(userId: string): Promise<{ success: boolean;
     return { success: false, error: error.message };
   }
 }
+
+export async function updateTelegramWriteAccess(userId: string, status: 'allowed' | 'denied' | 'unknown', awardPointsIfAllowed = false): Promise<{ success: boolean; rewarded?: boolean; error?: string }> {
+  try {
+    const userRef = doc(db, 'users', userId);
+    const userSnap = await getDoc(userRef);
+    const now = Date.now();
+    const updateData: any = {
+      telegramWriteAccessStatus: status,
+      writeAccessUpdatedAt: now,
+    };
+    if (status === 'allowed') {
+      updateData.writeAccessGranted = true;
+    } else {
+      updateData.writeAccessGranted = false;
+    }
+
+    if (!userSnap.exists()) {
+      await setDoc(userRef, {
+        id: userId,
+        coins: 0,
+        createdAt: now,
+        ...updateData,
+        writeAccessRequestedAt: now,
+      });
+      return { success: true, rewarded: false };
+    }
+
+    const userData = userSnap.data();
+    let rewarded = false;
+
+    if (status === 'allowed' && awardPointsIfAllowed) {
+      const taskRef = doc(db, 'user_tasks', `${userId}_telegram_write_access`);
+      const taskSnap = await getDoc(taskRef);
+      if (!taskSnap.exists()) {
+        const REWARD = 100;
+        await runTransaction(db, async (transaction) => {
+          const uSnap = await transaction.get(userRef);
+          const currentCoins = uSnap.exists() ? (uSnap.data().coins || 0) : 0;
+          transaction.set(taskRef, {
+            user_id: userId,
+            task_id: 'telegram_write_access',
+            task_type: 'telegram_write_access',
+            reward: REWARD,
+            completed: true,
+            completed_at: now
+          });
+          transaction.update(userRef, {
+            ...updateData,
+            coins: currentCoins + REWARD
+          });
+        });
+        rewarded = true;
+      } else {
+        await updateDoc(userRef, updateData);
+      }
+    } else {
+      await updateDoc(userRef, updateData);
+    }
+
+    return { success: true, rewarded };
+  } catch (error: any) {
+    console.error('Error updating telegram write access:', error);
+    return { success: false, error: error.message };
+  }
+}

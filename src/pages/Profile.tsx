@@ -11,7 +11,7 @@ import { TonPaymentModal } from '../components/TonPaymentModal';
 import { TON_CONFIG } from '../config/tonConfig';
 import { showAdsgramAd, ADSGRAM_BLOCKS } from '../services/adsgramService';
 import { getCurrentUserId, getShareTelegramLink } from '../services/referralService';
-import { getUserData } from '../services/userService';
+import { getUserData, updateTelegramWriteAccess, getTaskStatus } from '../services/userService';
 
 declare global {
   interface Window {
@@ -52,6 +52,9 @@ export const Profile = () => {
   const [showTonModal, setShowTonModal] = useState(false);
   const [isClaimingDaily, setIsClaimingDaily] = useState(false);
   const [isWatchingAd, setIsWatchingAd] = useState(false);
+  const [writeAccessStatus, setWriteAccessStatus] = useState<'allowed' | 'denied' | 'unknown'>('unknown');
+  const [isWriteAccessCompleted, setIsWriteAccessCompleted] = useState(false);
+  const [isWriteAccessLoading, setIsWriteAccessLoading] = useState(false);
   const userAddress = useTonAddress();
   const [tonConnectUI] = useTonConnectUI();
   
@@ -129,8 +132,9 @@ export const Profile = () => {
 
   useEffect(() => {
     const fetchUserData = async () => {
-      if (getCurrentUserId()) {
-        const data = await getUserData(getCurrentUserId());
+      const uid = getCurrentUserId();
+      if (uid) {
+        const data = await getUserData(uid);
         if (data) {
           const todayStr = new Date().toISOString().split('T')[0];
           if (data.dailyAdsDate === todayStr) {
@@ -138,7 +142,12 @@ export const Profile = () => {
           } else {
             setAdsWatchedCount(0);
           }
+          if (data.telegramWriteAccessStatus) {
+            setWriteAccessStatus(data.telegramWriteAccessStatus);
+          }
         }
+        const taskCompleted = await getTaskStatus(uid, 'telegram_write_access');
+        setIsWriteAccessCompleted(taskCompleted);
       }
     };
     fetchUserData();
@@ -202,6 +211,60 @@ export const Profile = () => {
       console.error('Watch ad error:', err);
     } finally {
       setIsWatchingAd(false);
+    }
+  };
+
+  const handleTelegramWriteAccess = () => {
+    if (isWriteAccessLoading) return;
+    setIsWriteAccessLoading(true);
+
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg?.requestWriteAccess) {
+      try {
+        tg.requestWriteAccess(async (allowed: boolean) => {
+          const status = allowed ? 'allowed' : 'denied';
+          const uid = getCurrentUserId();
+          if (uid) {
+            const res = await updateTelegramWriteAccess(uid, status, true);
+            if (res.success) {
+              setWriteAccessStatus(status);
+              if (res.rewarded) {
+                setIsWriteAccessCompleted(true);
+                useAppStore.getState().addCoins(100, isArabic ? 'تفعيل إشعارات تيليجرام' : 'Enable Telegram Notifications');
+                alert(isArabic ? '🎉 تم تفعيل الإشعارات وحصلت على 100 نقطة!' : '🎉 Notifications enabled and you got 100 points!');
+              } else {
+                alert(isArabic ? 'تم تفعيل الإشعارات بنجاح!' : 'Notifications enabled successfully!');
+              }
+            } else {
+              alert(isArabic ? 'حدث خطأ أثناء حفظ الإعدادات' : 'Error saving settings');
+            }
+          }
+          setIsWriteAccessLoading(false);
+        });
+      } catch (e) {
+        console.error("Write access error:", e);
+        setIsWriteAccessLoading(false);
+      }
+    } else {
+      const uid = getCurrentUserId();
+      if (uid) {
+        setTimeout(async () => {
+          const res = await updateTelegramWriteAccess(uid, 'allowed', true);
+          if (res.success) {
+            setWriteAccessStatus('allowed');
+            if (res.rewarded) {
+              setIsWriteAccessCompleted(true);
+              useAppStore.getState().addCoins(100, isArabic ? 'تفعيل إشعارات تيليجرام' : 'Enable Telegram Notifications');
+              alert(isArabic ? '🎉 (المحاكي) تم تفعيل الإشعارات وحصلت على 100 نقطة!' : '🎉 (Sandbox) Notifications enabled and you got 100 points!');
+            } else {
+              alert('(المحاكي) تم تفعيل الإشعارات!');
+            }
+          }
+          setIsWriteAccessLoading(false);
+        }, 1000);
+      } else {
+        setIsWriteAccessLoading(false);
+      }
     }
   };
 
@@ -589,27 +652,25 @@ export const Profile = () => {
         <div className="w-full">
            <h3 className="text-xs text-white/50 font-bold mb-3 uppercase tracking-wider text-start px-1">{t('settings', 'Settings')}</h3>
            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {!(window as any).Telegram?.WebApp?.initDataUnsafe?.user?.allows_write_to_pm && (
-                <button 
-                  onClick={() => {
-                    try {
-                      if ((window as any).Telegram?.WebApp?.requestWriteAccess) {
-                        (window as any).Telegram.WebApp.requestWriteAccess();
-                      }
-                    } catch (e) {
-                      console.error("Write access error", e);
-                    }
-                  }}
-                  className="bg-[#111111] border border-white/5 p-4 rounded-2xl flex items-center justify-between active:opacity-70 transition-opacity w-full"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-green-500/10 flex items-center justify-center flex-none">
-                      <span className="text-green-500 text-lg">🔔</span>
-                    </div>
-                    <span className="font-bold text-sm text-white">{isArabic ? 'تفعيل الإشعارات' : 'Enable Notifications'}</span>
+              <button 
+                onClick={handleTelegramWriteAccess}
+                disabled={writeAccessStatus === 'allowed' || isWriteAccessLoading}
+                className="bg-[#111111] border border-white/5 p-4 rounded-2xl flex items-center justify-between active:opacity-70 transition-opacity w-full disabled:opacity-90"
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-none ${writeAccessStatus === 'allowed' ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+                    <span className="text-lg">{writeAccessStatus === 'allowed' ? '✅' : '🔔'}</span>
                   </div>
-                </button>
-              )}
+                  <span className="font-bold text-sm text-white">
+                    {writeAccessStatus === 'allowed' 
+                      ? (isArabic ? 'إشعارات تيليجرام نشطة' : 'Telegram Notifications Active')
+                      : (isArabic ? 'تفعيل إشعارات تيليجرام' : 'Enable Telegram Notifications')}
+                  </span>
+                </div>
+                {!isWriteAccessCompleted && writeAccessStatus !== 'allowed' && (
+                  <span className="text-xs text-yellow-500 font-black bg-yellow-500/10 px-2 py-1 rounded-md" dir="ltr">+100</span>
+                )}
+              </button>
               
               <button 
                 onClick={() => i18n.changeLanguage(i18n.language === 'en' ? 'ar' : 'en')}
