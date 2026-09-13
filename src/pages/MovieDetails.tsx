@@ -50,7 +50,16 @@ export const MovieDetails = () => {
       {/* Top Bar */}
       <div className="absolute top-0 left-0 right-0 z-50 bg-gradient-to-b from-[#050505]/80 to-transparent">
         <div className="flex justify-between items-center p-4">
-          <button onClick={() => navigate(-1)} className="w-10 h-10 bg-black/40 hover:bg-black/60 rounded-full flex items-center justify-center text-white backdrop-blur-md transition-colors">
+          <button 
+            onClick={() => {
+              if (window.history.state && window.history.state.idx > 0) {
+                navigate(-1);
+              } else {
+                navigate('/', { replace: true });
+              }
+            }} 
+            className="w-10 h-10 bg-black/40 hover:bg-black/60 rounded-full flex items-center justify-center text-white backdrop-blur-md transition-colors"
+          >
             <ArrowLeft size={24} />
           </button>
           <div className="flex gap-3">

@@ -189,9 +189,19 @@ export const Watch = () => {
   const unlockEp = useMemo(() => episodes.find(e => e.id === showUnlockModal), [episodes, showUnlockModal]);
   const isUnlockLong = unlockEp ? (unlockEp.isLongEpisode || (unlockEp.duration && unlockEp.duration >= 360)) : false;
 
-  const [activeEpisodeId, setActiveEpisodeId] = useState<string>('');
-  const [playingEpisodeId, setPlayingEpisodeId] = useState<string>('');
+  const initialEpId = useMemo(() => {
+    const params = new URLSearchParams(location.search);
+    const epParam = params.get('ep');
+    if (epParam && episodes.find(e => e.id === epParam)) return epParam;
+    if (episodes.length > 0) return episodes[0].id;
+    return '';
+  }, [location.search, episodes]);
+
+  const [activeEpisodeId, setActiveEpisodeId] = useState<string>(initialEpId);
+  const [playingEpisodeId, setPlayingEpisodeId] = useState<string>(initialEpId);
   
+  const isFirstPlayRef = useRef(true);
+
   // Centralized single-player transition logic
   const currentEpData = useMemo(() => episodes.find(e => e.id === activeEpisodeId), [episodes, activeEpisodeId]);
   const currentIsLong = currentEpData ? (currentEpData.isLongEpisode || (currentEpData.duration && currentEpData.duration >= 360)) : false;
@@ -202,8 +212,12 @@ export const Watch = () => {
   useEffect(() => {
     // Immediate pause of EVERYTHING when user starts swiping or target changes
     setPlayingEpisodeId('');
-
     if (activeEpisodeId && currentAllowedToPlay) {
+      if (isFirstPlayRef.current) {
+        isFirstPlayRef.current = false;
+        setPlayingEpisodeId(activeEpisodeId);
+        return;
+      }
       // Debounce the play to ensure user has stopped swiping
       const timeout = setTimeout(() => {
         setPlayingEpisodeId(activeEpisodeId);
@@ -235,16 +249,6 @@ export const Watch = () => {
     });
   }, [activeEpisodeId]);
   const [autoPlayingNext, setAutoPlayingNext] = useState<{ id: string; nextEpNum: number; nextEpId: string } | null>(null);
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const epParam = params.get('ep');
-    if (epParam && episodes.find(e => e.id === epParam)) {
-      setActiveEpisodeId(epParam);
-    } else if (episodes.length > 0 && !activeEpisodeId) {
-      setActiveEpisodeId(episodes[0].id);
-    }
-  }, [location.search, episodes, activeEpisodeId]);
 
   // Sync Watch History with exact episode, percentage, and timestamp
   useEffect(() => {
@@ -421,7 +425,13 @@ export const Watch = () => {
         areControlsVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
       }`}>
         <button 
-          onClick={() => navigate(-1)}
+          onClick={() => {
+            if (window.history.state && window.history.state.idx > 0) {
+              navigate(-1);
+            } else {
+              navigate('/', { replace: true });
+            }
+          }}
           className="w-10 h-10 bg-black/60 backdrop-blur-xl rounded-full flex items-center justify-center text-white/90 border border-white/20 shadow-[0_4px_15px_rgba(0,0,0,0.5)] active:scale-90 transition-all hover:bg-black/80 hover:text-white hover:border-white/40 pointer-events-auto"
         >
           <ArrowLeft size={20} className={isArabic ? 'rotate-180' : ''} />
