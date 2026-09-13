@@ -6,6 +6,8 @@ import { useAppStore } from '../store';
 import { motion, AnimatePresence } from 'motion/react';
 import { MovieCard } from '../components/MovieCard';
 import { AnimatedViews } from '../components/AnimatedViews';
+import { auth } from '../firebase';
+import { getCurrentUserId } from '../services/referralService';
 
 export const MovieDetails = () => {
   const { id } = useParams<{ id: string }>();
@@ -57,12 +59,23 @@ export const MovieDetails = () => {
             </button>
             <button 
               onClick={() => {
-                if (navigator.share) {
+                const currentUserId = getCurrentUserId(auth.currentUser?.uid);
+                const botUsername = 'DramaReel_bot'; // or could be fetched from env if available
+                const shareUrl = `https://t.me/${botUsername}?startapp=movie_${movie.id}_${currentUserId}`;
+                const text = encodeURIComponent(`🎬 شاهد فيلم ${movie.title} مجاناً على Drama Reel!`);
+                const tgShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${text}`;
+                
+                const tg = (window as any).Telegram?.WebApp;
+                if (tg && typeof tg.openTelegramLink === 'function') {
+                  tg.openTelegramLink(tgShareUrl);
+                } else if (navigator.share) {
                   navigator.share({
                     title: movie.title,
-                    text: `Check out ${movie.title} on Drama Reel!`,
-                    url: window.location.href
+                    text: `🎬 شاهد فيلم ${movie.title} مجاناً على Drama Reel!`,
+                    url: shareUrl
                   }).catch(console.error);
+                } else {
+                  window.open(tgShareUrl, '_blank');
                 }
               }}
               className="w-10 h-10 bg-black/40 hover:bg-black/60 rounded-full flex items-center justify-center text-white active:opacity-80 backdrop-blur-md transition-colors"
@@ -128,9 +141,35 @@ export const MovieDetails = () => {
 
           <button 
             onClick={() => navigate(`/watch/${movie.id}`)}
-            className="w-full bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-500 hover:to-orange-400 text-white font-bold py-3.5 rounded-full flex items-center justify-center gap-2 mb-4 shadow-[0_4px_20px_rgba(229,9,20,0.5)] border border-white/10 active:opacity-80 transition-all"
+            className="w-full bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-500 hover:to-orange-400 text-white font-bold py-3.5 rounded-full flex items-center justify-center gap-2 mb-3 shadow-[0_4px_20px_rgba(229,9,20,0.5)] border border-white/10 active:opacity-80 transition-all"
           >
             <Play fill="currentColor" size={20} /> {t('play')}
+          </button>
+          
+          <button 
+            onClick={() => {
+              const currentUserId = getCurrentUserId(auth.currentUser?.uid);
+              const botUsername = 'DramaReel_bot';
+              const shareUrl = `https://t.me/${botUsername}?startapp=movie_${movie.id}_${currentUserId}`;
+              const text = encodeURIComponent(`🎬 شاهد فيلم ${movie.title} مجاناً على Drama Reel!`);
+              const tgShareUrl = `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}&text=${text}`;
+              
+              const tg = (window as any).Telegram?.WebApp;
+              if (tg && typeof tg.openTelegramLink === 'function') {
+                tg.openTelegramLink(tgShareUrl);
+              } else if (navigator.share) {
+                navigator.share({
+                  title: movie.title,
+                  text: `🎬 شاهد فيلم ${movie.title} مجاناً على Drama Reel!`,
+                  url: shareUrl
+                }).catch(console.error);
+              } else {
+                window.open(tgShareUrl, '_blank');
+              }
+            }}
+            className="w-full bg-white/10 hover:bg-white/20 text-white font-bold py-3.5 rounded-full flex items-center justify-center gap-2 mb-4 border border-white/10 active:opacity-80 transition-all"
+          >
+            <Share2 size={20} /> {t('share', 'مشاركة الفيلم')}
           </button>
         </div>
 

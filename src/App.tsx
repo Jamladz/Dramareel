@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { signInAnonymously } from 'firebase/auth';
 import { auth } from './firebase';
@@ -29,7 +29,26 @@ import './i18n';
 // Main App component
 const AnimatedRoutes = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   
+  useEffect(() => {
+    // Handle Telegram Deep Link for movies safely inside the router context
+    const tg = (window as any).Telegram?.WebApp;
+    if (tg?.initDataUnsafe?.start_param) {
+      const startParam = tg.initDataUnsafe.start_param;
+      if (startParam.startsWith('movie_')) {
+        const parts = startParam.split('_');
+        const movieId = parts[1];
+        if (movieId) {
+          // Avoid navigating if we are already on the movie page
+          if (!window.location.pathname.startsWith('/movie/')) {
+            navigate(`/movie/${movieId}`, { replace: true });
+          }
+        }
+      }
+    }
+  }, [navigate]);
+
   // Don't show bottom nav on watch page or details or admin
   const showNav = !location.pathname.includes('/watch/') && !location.pathname.includes('/movie/') && !location.pathname.includes('/admin');
 
@@ -96,8 +115,6 @@ export default function App() {
     // Set theme based on Telegram settings or force dark
     document.documentElement.classList.add('dark');
     
-    let isDeepLinkToMovie = false;
-    
     // Telegram Web App configurations
     if ((window as any).Telegram?.WebApp) {
       const tg = (window as any).Telegram.WebApp;
@@ -137,18 +154,9 @@ export default function App() {
         console.warn("Write access request not supported", e);
       }
       
-      // Handle Deep Link
-      const startParam = tg.initDataUnsafe?.start_param;
-      if (startParam && startParam.startsWith('movie_')) {
-        const movieId = startParam.replace('movie_', '');
-        // We defer navigation until router is mounted
-        setTimeout(() => {
-          if (window.location.pathname === '/') {
-            window.location.href = `/movie/${movieId}`;
-          }
-        }, 500);
-        isDeepLinkToMovie = true;
-      }
+      // Handle Deep Link inside AnimatedRoutes instead of here
+      // to avoid full page reload which breaks referral processing.
+      // (The logic has been moved to AnimatedRoutes)
       
       if (typeof tg.requestFullscreen === 'function') {
         try {

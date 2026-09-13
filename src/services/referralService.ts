@@ -91,8 +91,19 @@ export async function processReferral(currentUserId: string, currentUserName: st
 
     if (!rawRef) return null;
 
-    // Clean prefix 'ref_'
-    const referrerId = rawRef.startsWith('ref_') ? rawRef.replace('ref_', '') : rawRef;
+    // Extract referrer ID based on parameter format
+    let referrerId = rawRef;
+    if (rawRef.startsWith('ref_')) {
+      referrerId = rawRef.replace('ref_', '');
+    } else if (rawRef.startsWith('movie_')) {
+      const parts = rawRef.split('_');
+      // Format: movie_{movieId}_{referrerId}
+      if (parts.length >= 3) {
+        referrerId = parts.slice(2).join('_');
+      } else {
+        return null; // Not a referral link, just a direct movie link
+      }
+    }
 
     if (!referrerId || referrerId === currentUserId) {
       return null; // Self-referral or invalid
