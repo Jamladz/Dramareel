@@ -85,6 +85,12 @@ export const Admin = () => {
   const loadTgUsers = async () => {
     try {
       const users = await getTelegramUsers();
+      // Sort users by number of watched episodes (descending)
+      users.sort((a, b) => {
+        const aCount = a.completedEpisodesCount || (a.completedEpisodes ? a.completedEpisodes.length : 0);
+        const bCount = b.completedEpisodesCount || (b.completedEpisodes ? b.completedEpisodes.length : 0);
+        return bCount - aCount;
+      });
       setTgUsers(users);
     } catch (e) {
       console.error(e);
