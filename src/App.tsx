@@ -60,7 +60,7 @@ const AnimatedRoutes = () => {
 
   return (
     <div 
-      className="bg-[#050505] w-screen overflow-hidden text-[#E0E0E0] font-sans selection:bg-red-500/30 relative flex flex-col"
+      className="bg-[#070709] w-screen overflow-hidden text-[#F4F4F6] font-sans selection:bg-red-500/30 relative flex flex-col"
       style={{
         height: 'var(--tg-viewport-stable-height, 100vh)',
         paddingTop: 'calc(var(--tg-safe-area-inset-top, env(safe-area-inset-top, 0px)) + 28px)',
@@ -93,7 +93,15 @@ export default function App() {
   const [isAuthReady, setIsAuthReady] = useState(false);
   const [moviesLoaded, setMoviesLoaded] = useState(false);
   const [referralBonusToast, setReferralBonusToast] = useState<number | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [notificationToast, setNotificationToast] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(() => getCurrentUserId());
+  const [writeAccessGrantedState, setWriteAccessGrantedState] = useState<boolean>(() => {
+    const tg = (window as any).Telegram?.WebApp;
+    return Boolean(tg?.initDataUnsafe?.user?.allows_write_to_pm);
+  });
+  const writeAccessPromptedRef = React.useRef(false);
+  const writeAccessHandledRef = React.useRef(false);
+
   const addCoins = useAppStore(s => s.addCoins);
   const coins = useAppStore(s => s.coins);
   const completedEpisodes = useAppStore(s => s.completedEpisodes);
@@ -115,27 +123,95 @@ export default function App() {
       const tgUser = getTelegramUser();
       const userName = tgUser?.first_name || 'مستخدم';
       const tg = (window as any).Telegram?.WebApp;
-      const writeAccessGranted = tg?.initDataUnsafe?.user?.allows_write_to_pm || false;
-      syncCoinsToFirebase(userId, coins, userName, completedEpisodes, writeAccessGranted);
+      const isAllowed = writeAccessGrantedState || Boolean(tg?.initDataUnsafe?.user?.allows_write_to_pm);
+      syncCoinsToFirebase(userId, coins, userName, completedEpisodes, isAllowed ? true : undefined);
     }
-  }, [coins, userId, completedEpisodes]);
+  }, [coins, userId, completedEpisodes, writeAccessGrantedState]);
 
+  // Official Telegram Write Access (Notifications) automatic prompt once app UI is ready
   useEffect(() => {
-    if (userId) {
-      const tg = (window as any).Telegram?.WebApp;
-      const allowsWriteToPm = tg?.initDataUnsafe?.user?.allows_write_to_pm;
-      if (allowsWriteToPm) {
-        updateTelegramWriteAccess(userId, 'allowed', true).then((res) => {
-          if (res.success && res.rewarded) {
-            addCoins(100, 'تفعيل إشعارات تيليجرام');
-            console.log("Auto-rewarded user with 100 points for pre-existing write access.");
-          }
-        }).catch(err => {
-          console.error("Error auto-syncing write access:", err);
-        });
-      }
+    if (!isAuthReady || !moviesLoaded) return;
+    if (writeAccessPromptedRef.current) return;
+    writeAccessPromptedRef.current = true;
+
+    // Clear any legacy localStorage flag that previously blocked the official Telegram popup
+    try {
+      localStorage.removeItem('dramareel_write_access_requested');
+    } catch (e) {
+      // Ignore storage errors
     }
-  }, [userId, addCoins]);
+
+    const tg = (window as any).Telegram?.WebApp;
+    if (!tg) return;
+
+    const currentId = userId || getCurrentUserId(auth.currentUser?.uid);
+    const alreadyAllowedInInitData = Boolean(tg.initDataUnsafe?.user?.allows_write_to_pm);
+
+    const handleWriteAccessDecision = (allowed: boolean) => {
+      if (writeAccessHandledRef.current && allowed === writeAccessGrantedState) return;
+      writeAccessHandledRef.current = true;
+
+      const resolvedUserId = currentId || getCurrentUserId(auth.currentUser?.uid);
+      if (allowed) {
+        setWriteAccessGrantedState(true);
+        if (resolvedUserId) {
+          updateTelegramWriteAccess(resolvedUserId, 'allowed', true).then((res) => {
+            if (res.success && res.rewarded) {
+              addCoins(100, 'تفعيل إشعارات تيليجرام');
+              setNotificationToast('🔔 تم تفعيل الإشعارات بنجاح! حصلت على +100 نقطة مجانية');
+              setTimeout(() => setNotificationToast(null), 4500);
+            }
+          }).catch(err => {
+            console.error("Error updating allowed write access:", err);
+          });
+        }
+      } else {
+        if (resolvedUserId) {
+          updateTelegramWriteAccess(resolvedUserId, 'denied', false).catch(err => {
+            console.error("Error updating denied write access:", err);
+          });
+        }
+      }
+    };
+
+    if (alreadyAllowedInInitData) {
+      handleWriteAccessDecision(true);
+      return;
+    }
+
+    // Listen for official Telegram writeAccessRequested event
+    const onWriteAccessEvent = (eventData: any) => {
+      if (eventData?.status === 'allowed') {
+        handleWriteAccessDecision(true);
+      } else if (eventData?.status === 'cancelled') {
+        handleWriteAccessDecision(false);
+      }
+    };
+
+    if (typeof tg.onEvent === 'function') {
+      tg.onEvent('writeAccessRequested', onWriteAccessEvent);
+    }
+
+    // Automatically trigger the official Telegram permission popup
+    const promptTimer = setTimeout(() => {
+      try {
+        if (typeof tg.requestWriteAccess === 'function') {
+          tg.requestWriteAccess((allowed: boolean) => {
+            handleWriteAccessDecision(Boolean(allowed));
+          });
+        }
+      } catch (err) {
+        console.warn("Official Telegram requestWriteAccess failed:", err);
+      }
+    }, 700);
+
+    return () => {
+      clearTimeout(promptTimer);
+      if (typeof tg.offEvent === 'function') {
+        tg.offEvent('writeAccessRequested', onWriteAccessEvent);
+      }
+    };
+  }, [isAuthReady, moviesLoaded, userId, addCoins, writeAccessGrantedState]);
 
   useEffect(() => {
     // Disable copy on non-input elements
@@ -157,52 +233,6 @@ export default function App() {
       tg.ready();
       tg.expand();
       
-      // Request write access to send notifications ONLY if not already granted and not requested before
-      try {
-        const hasWriteAccess = tg.initDataUnsafe?.user?.allows_write_to_pm;
-        const hasRequestedBefore = localStorage.getItem('dramareel_write_access_requested');
-        
-        if (!hasWriteAccess && !hasRequestedBefore && typeof tg.requestWriteAccess === 'function') {
-          // Mark as requested so we don't spam the user on next reload
-          localStorage.setItem('dramareel_write_access_requested', 'true');
-          // Delay slightly to ensure UI is ready
-          setTimeout(() => {
-            tg.requestWriteAccess();
-          }, 1000);
-        }
-        
-        // Listen for write access request response
-        if (typeof tg.onEvent === 'function') {
-          tg.onEvent('writeAccessRequested', (data: any) => {
-            if (data.status === 'allowed') {
-              if (auth.currentUser) {
-                const currentId = getCurrentUserId(auth.currentUser.uid);
-                updateTelegramWriteAccess(currentId, 'allowed', true).then((res) => {
-                  if (res.success && res.rewarded) {
-                    addCoins(100, 'تفعيل إشعارات تيليجرام');
-                  }
-                }).catch(err => {
-                  console.error("Error setting write access:", err);
-                });
-              }
-            } else if (data.status === 'cancelled') {
-              if (auth.currentUser) {
-                const currentId = getCurrentUserId(auth.currentUser.uid);
-                updateTelegramWriteAccess(currentId, 'denied', false).catch(err => {
-                  console.error("Error setting denied write access:", err);
-                });
-              }
-            }
-          });
-        }
-      } catch (e) {
-        console.warn("Write access request not supported", e);
-      }
-      
-      // Handle Deep Link inside AnimatedRoutes instead of here
-      // to avoid full page reload which breaks referral processing.
-      // (The logic has been moved to AnimatedRoutes)
-      
       if (typeof tg.requestFullscreen === 'function') {
         try {
           if (tg.isVersionAtLeast && tg.isVersionAtLeast('8.0')) {
@@ -214,8 +244,8 @@ export default function App() {
       }
 
       try {
-        if (tg.setHeaderColor) tg.setHeaderColor('#050505');
-        if (tg.setBackgroundColor) tg.setBackgroundColor('#050505');
+        if (tg.setHeaderColor) tg.setHeaderColor('#070709');
+        if (tg.setBackgroundColor) tg.setBackgroundColor('#070709');
       } catch (e) {
         console.error("Telegram set color error:", e);
       }
@@ -234,10 +264,10 @@ export default function App() {
     const unsubscribe = auth.onAuthStateChanged((user) => {
       clearTimeout(authTimeout);
       setIsAuthReady(true);
-      if (user) {
-        // Process potential referral deep link
-        const currentId = getCurrentUserId(user.uid);
-        setUserId(currentId);
+      const currentId = getCurrentUserId(user?.uid);
+      setUserId(currentId);
+
+      if (currentId) {
         const tgUser = getTelegramUser();
         const userName = tgUser?.first_name || 'Friend';
 
@@ -260,10 +290,10 @@ export default function App() {
 
   if (!isAuthReady || !moviesLoaded) {
     return (
-      <div className="min-h-screen bg-[#050505] flex items-center justify-center text-red-600 font-bold">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs text-white/60">Drama Reel Loading...</span>
+      <div className="min-h-screen bg-[#070709] flex items-center justify-center text-red-600 font-bold">
+        <div className="flex flex-col items-center gap-3.5">
+          <div className="w-11 h-11 border-4 border-red-600 border-t-transparent rounded-full animate-spin shadow-[0_0_20px_rgba(229,9,20,0.4)]" />
+          <span className="text-xs font-extrabold tracking-widest uppercase text-white/60">DRAMA REEL</span>
         </div>
       </div>
     );
@@ -273,21 +303,37 @@ export default function App() {
     <Router>
       <AnimatedRoutes />
 
+      {/* Official Telegram Notification Enabled Toast */}
+      {notificationToast && (
+        <div className="fixed top-5 inset-x-4 max-w-md mx-auto z-[999] bg-[#121217]/95 backdrop-blur-xl text-white p-4 rounded-2xl shadow-2xl border border-emerald-500/30 flex items-center justify-between animate-in slide-in-from-top duration-300">
+          <div className="flex items-center gap-3">
+            <span className="w-8 h-8 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center text-sm">🔔</span>
+            <div className="text-xs font-extrabold text-emerald-300">{notificationToast}</div>
+          </div>
+          <button 
+            onClick={() => setNotificationToast(null)}
+            className="text-xs font-black bg-white/10 px-2.5 py-1 rounded-lg text-white/70 hover:text-white"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       {/* Welcome Referral Toast Notification */}
       {referralBonusToast && (
-        <div className="fixed top-5 inset-x-4 z-[999] bg-gradient-to-r from-amber-600 via-yellow-500 to-amber-600 text-black p-4 rounded-2xl shadow-2xl border border-yellow-300 flex items-center justify-between animate-in slide-in-from-top duration-300">
+        <div className="fixed top-5 inset-x-4 max-w-md mx-auto z-[999] bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 text-black p-4 rounded-2xl shadow-2xl border border-yellow-200 flex items-center justify-between animate-in slide-in-from-top duration-300">
           <div className="flex items-center gap-3">
             <span className="text-2xl">🎉</span>
             <div>
-              <div className="font-extrabold text-sm">مرحباً بك في Drama Reel!</div>
-              <div className="text-xs font-medium">حصلت على +{referralBonusToast} نقطة مجانية من مكافأة الإحالة!</div>
+              <div className="font-black text-sm">مرحباً بك في Drama Reel!</div>
+              <div className="text-xs font-bold">حصلت على +{referralBonusToast} نقطة مجانية من مكافأة الإحالة!</div>
             </div>
           </div>
           <button 
             onClick={() => setReferralBonusToast(null)}
-            className="text-xs font-bold bg-black/20 px-2.5 py-1 rounded-lg"
+            className="text-xs font-black bg-black/20 px-2.5 py-1 rounded-lg"
           >
-            x
+            ✕
           </button>
         </div>
       )}
@@ -296,4 +342,5 @@ export default function App() {
     </Router>
   );
 }
+
 

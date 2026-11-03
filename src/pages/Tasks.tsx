@@ -1,14 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Gift, Tv, CheckCircle, Clock, Film, Users, Share2, Flame, Coins, Globe } from 'lucide-react';
+import { Gift, Tv, CheckCircle, Clock, Share2, Flame, Coins, Globe, Bell, Smartphone, Sparkles } from 'lucide-react';
 import { useAppStore } from '../store';
-import { getUserData, claimMonetagReward, claimSiteVisitReward, claimHomeScreenReward, claimRewardAd, getTaskStatus, completeTelegramTask, updateTelegramWriteAccess } from '../services/userService';
+import { getUserData, claimMonetagReward, claimSiteVisitReward, claimRewardAd, getTaskStatus, completeTelegramTask, updateTelegramWriteAccess } from '../services/userService';
 import { getCurrentUserId } from '../services/referralService';
 import { showAdsgramAd, ADSGRAM_BLOCKS } from '../services/adsgramService';
 import { ReferralHub } from '../components/ReferralHub';
+import { TopPointsBadge } from '../components/TopPointsBadge';
+import { AnimatePresence, motion } from 'motion/react';
 
 export const Tasks = () => {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const isArabic = i18n.language === 'ar';
   
   const { 
@@ -20,9 +22,14 @@ export const Tasks = () => {
     setJoinedTelegram, 
     streakDays,
     addCoins,
-    
-    getTotalCoinsEarned
   } = useAppStore();
+
+  // Toast feedback state instead of window.alert
+  const [toast, setToast] = useState<{ text: string; type: 'success' | 'info' } | null>(null);
+  const showToast = (text: string, type: 'success' | 'info' = 'success') => {
+    setToast({ text, type });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   // Monetag State
   const [isMonetagLoading, setIsMonetagLoading] = useState(false);
@@ -35,7 +42,6 @@ export const Tasks = () => {
   const [adsWatchedCount, setAdsWatchedCount] = useState(0);
   const DAILY_AD_LIMIT = 20;
 
-  
   // Site Visit State
   const [isSiteVisitLoading, setIsSiteVisitLoading] = useState(false);
   const [isHomeScreenLoading, setIsHomeScreenLoading] = useState(false);
@@ -43,9 +49,6 @@ export const Tasks = () => {
   const [lastSiteVisitClaim, setLastSiteVisitClaim] = useState<number>(0);
   const [siteVisitTimeLeft, setSiteVisitTimeLeft] = useState<string | null>(null);
   const SITE_VISIT_COOLDOWN_MS = 5 * 60 * 1000;
-
-  // Adsgram general Watch Ad State
-  const [isWatchingAd, setIsWatchingAd] = useState(false);
 
   // Daily Streak State
   const [isClaimingDaily, setIsClaimingDaily] = useState(false);
@@ -59,6 +62,8 @@ export const Tasks = () => {
   const [telegramWriteAccessStatus, setTelegramWriteAccessStatus] = useState<'allowed' | 'denied' | 'unknown'>('unknown');
   const [isWriteAccessCompleted, setIsWriteAccessCompleted] = useState(false);
   const [isWriteAccessLoading, setIsWriteAccessLoading] = useState(false);
+
+  const streakRewards = [50, 70, 100, 120, 150, 200, 300];
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -122,7 +127,6 @@ export const Tasks = () => {
     return () => clearInterval(interval);
   }, [lastMonetagClaim]);
 
-  
   // Site Visit Timer
   useEffect(() => {
     if (!lastSiteVisitClaim) {
@@ -188,12 +192,12 @@ export const Tasks = () => {
           if (data.success) {
             useAppStore.getState().addCoins(30, isArabic ? 'إعلانات A' : 'Ads A');
             setLastMonetagClaim(data.lastClaim!);
-            alert(isArabic ? '🎉 حصلت على 30 نقطة' : '🎉 You got 30 points');
+            showToast(isArabic ? 'حصلت على +30 نقطة بنجاح!' : 'You earned +30 points!', 'success');
           } else {
              if (data.remainingMs) {
                 setLastMonetagClaim(Date.now() - (MONETAG_COOLDOWN_MS - data.remainingMs));
              }
-             alert(isArabic ? 'لم يحن وقت المكافأة بعد' : 'Reward not ready yet');
+             showToast(isArabic ? 'لم يحن وقت المكافأة بعد' : 'Reward not ready yet', 'info');
           }
         } catch (e) {
           console.error("Claim error:", e);
@@ -206,13 +210,11 @@ export const Tasks = () => {
       });
     } else {
       console.warn("Monetag script not loaded");
-      alert(isArabic ? 'حدث خطأ في تحميل الإعلان، يرجى إيقاف مانع الإعلانات أو المحاولة لاحقاً.' : 'Ad failed to load. Please disable adblocker or try again later.');
+      showToast(isArabic ? 'حدث خطأ في تحميل الإعلان، يرجى المحاولة لاحقاً' : 'Ad failed to load. Please try again later.', 'info');
       setIsMonetagLoading(false);
     }
   };
 
-  
-  
   const handleHomeScreenAdd = () => {
     if (isHomeScreenLoading || isHomeScreenAdded) return;
     useAppStore.getState().openHomeScreenModal();
@@ -222,10 +224,8 @@ export const Tasks = () => {
     if (isSiteVisitLoading || siteVisitTimeLeft) return;
     setIsSiteVisitLoading(true);
     
-    // Open the website in a new tab
     window.open('https://omg10.com/4/11695668', '_blank');
     
-    // Add a 5 second delay to simulate user waiting/visiting the site before claiming
     setTimeout(async () => {
       const uid = getCurrentUserId();
       if (!uid) {
@@ -238,16 +238,16 @@ export const Tasks = () => {
         if (data.success) {
           useAppStore.getState().addCoins(20, isArabic ? 'زيارة الموقع' : 'Visit Website');
           setLastSiteVisitClaim(data.lastClaim!);
-          alert(isArabic ? '🎉 حصلت على 20 نقطة لزيارة الموقع' : '🎉 You got 20 points for visiting');
+          showToast(isArabic ? 'حصلت على +20 نقطة لزيارة الموقع!' : 'Earned +20 points for visiting!', 'success');
         } else {
            if (data.remainingMs) {
               setLastSiteVisitClaim(Date.now() - (SITE_VISIT_COOLDOWN_MS - data.remainingMs));
            }
-           alert(isArabic ? 'لم يحن وقت المكافأة بعد' : 'Reward not ready yet');
+           showToast(isArabic ? 'لم يحن وقت المكافأة بعد' : 'Reward not ready yet', 'info');
         }
       } catch (e) {
         console.error("Site visit claim error:", e);
-        alert(isArabic ? 'حدث خطأ. يرجى المحاولة لاحقاً.' : 'Error occurred. Please try again later.');
+        showToast(isArabic ? 'حدث خطأ. يرجى المحاولة لاحقاً.' : 'Error occurred. Please try again later.', 'info');
       } finally {
         setIsSiteVisitLoading(false);
       }
@@ -256,7 +256,7 @@ export const Tasks = () => {
 
   const handleRewardAd = async () => {
     if (adsWatchedCount >= DAILY_AD_LIMIT) {
-      alert(isArabic ? 'لقد وصلت إلى الحد اليومي، حاول غدًا.' : 'Daily limit reached, try tomorrow.');
+      showToast(isArabic ? 'لقد وصلت إلى الحد اليومي، حاول غدًا.' : 'Daily limit reached, try tomorrow.', 'info');
       return;
     }
     setIsRewardAdLoading(true);
@@ -269,9 +269,9 @@ export const Tasks = () => {
            if (res.success && res.newTotal !== undefined) {
              useAppStore.getState().setCoinsFromServer(res.newTotal);
              setAdsWatchedCount(res.adsWatchedToday || 0);
-             alert(isArabic ? 'تمت إضافة 30 نقطة 🎉' : 'Added 30 points 🎉');
+             showToast(isArabic ? 'تمت إضافة +30 نقطة إلى رصيدك!' : 'Added +30 points!', 'success');
            } else {
-             alert(res.error || (isArabic ? 'حدث خطأ' : 'Error'));
+             showToast(res.error || (isArabic ? 'حدث خطأ' : 'Error'), 'info');
            }
         }
       }
@@ -279,24 +279,6 @@ export const Tasks = () => {
       console.error('Reward ad error:', err);
     } finally {
       setIsRewardAdLoading(false);
-    }
-  };
-
-  const handleWatchAd = async () => {
-    setIsWatchingAd(true);
-    try {
-      const success = await showAdsgramAd(ADSGRAM_BLOCKS.WATCH_AD);
-      if (success) {
-        if (claimAdReward()) {
-          alert(isArabic ? '🎉 شكراً لمشاهدتك الإعلان! تمت إضافة +30 نقطة لرصيدك!' : '🎉 Thanks for watching! +30 Coins added!');
-        } else {
-          alert(isArabic ? 'الرجاء الانتظار 3 دقائق قبل مشاهدة إعلان آخر.' : 'Please wait 3 minutes before watching another ad.');
-        }
-      }
-    } catch (err) {
-      console.error('Watch ad error:', err);
-    } finally {
-      setIsWatchingAd(false);
     }
   };
 
@@ -308,9 +290,9 @@ export const Tasks = () => {
       if (success) {
         const res = claimDailyReward();
         if (res.success) {
-          alert(isArabic ? `🎉 تهانينا! استلمت مكافأة اليوم ${res.streak}: +${res.reward} نقطة!` : `🎉 Congratulations! Claimed Day ${res.streak} reward: +${res.reward} coins!`);
+          showToast(isArabic ? `تهانينا! استلمت مكافأة اليوم ${res.streak}: +${res.reward} نقطة!` : `Claimed Day ${res.streak} reward: +${res.reward} coins!`, 'success');
         } else {
-          alert(isArabic ? 'لقد قمت باستلام مكافأتك اليومية بالفعل. عد غداً!' : 'Already claimed today! Come back tomorrow.');
+          showToast(isArabic ? 'لقد قمت باستلام مكافأتك اليومية بالفعل. عد غداً!' : 'Already claimed today! Come back tomorrow.', 'info');
         }
       }
     } catch (err) {
@@ -331,11 +313,11 @@ export const Tasks = () => {
         if (res.success) {
           setJoinedTelegram();
           addCoins(100, 'انضمام لقناة التلجرام');
-          alert(isArabic ? '🎉 تم إكمال المهمة بنجاح!' : '🎉 Task completed!');
+          showToast(isArabic ? 'تم إكمال المهمة وحصلت على +100 نقطة!' : 'Task completed! +100 points!', 'success');
         } else {
           if (res.error === 'Task already completed') {
             setJoinedTelegram();
-            alert(isArabic ? 'لقد أكملت هذه المهمة مسبقاً' : 'Task already completed');
+            showToast(isArabic ? 'لقد أكملت هذه المهمة مسبقاً' : 'Task already completed', 'info');
           }
         }
       } else {
@@ -362,12 +344,10 @@ export const Tasks = () => {
               if (res.rewarded) {
                 setIsWriteAccessCompleted(true);
                 addCoins(100, isArabic ? 'تفعيل إشعارات تيليجرام' : 'Enable Telegram Notifications');
-                alert(isArabic ? '🎉 تم تفعيل الإشعارات وحصلت على 100 نقطة!' : '🎉 Notifications enabled and you got 100 points!');
+                showToast(isArabic ? 'تم تفعيل الإشعارات وحصلت على +100 نقطة!' : 'Notifications enabled! +100 points!', 'success');
               } else {
-                alert(isArabic ? 'تم تفعيل الإشعارات بنجاح!' : 'Notifications enabled successfully!');
+                showToast(isArabic ? 'تم تفعيل الإشعارات بنجاح!' : 'Notifications enabled!', 'success');
               }
-            } else {
-              alert(isArabic ? 'حدث خطأ أثناء حفظ الإعدادات' : 'Error saving settings');
             }
           }
           setIsWriteAccessLoading(false);
@@ -386,9 +366,7 @@ export const Tasks = () => {
             if (res.rewarded) {
               setIsWriteAccessCompleted(true);
               addCoins(100, isArabic ? 'تفعيل إشعارات تيليجرام' : 'Enable Telegram Notifications');
-              alert(isArabic ? '🎉 (المحاكي) تم تفعيل الإشعارات وحصلت على 100 نقطة!' : '🎉 (Sandbox) Notifications enabled and you got 100 points!');
-            } else {
-              alert('(المحاكي) تم تفعيل الإشعارات!');
+              showToast(isArabic ? 'تم تفعيل الإشعارات وحصلت على +100 نقطة!' : 'Notifications enabled! +100 points!', 'success');
             }
           }
           setIsWriteAccessLoading(false);
@@ -399,7 +377,6 @@ export const Tasks = () => {
     }
   };
 
-  // Modern clean task item component
   const TaskItem = ({ 
     icon, 
     title, 
@@ -410,125 +387,197 @@ export const Tasks = () => {
     disabled, 
     loading, 
     completed,
-    timer 
+    timer,
+    accent = 'red'
   }: any) => (
-    <div className="bg-[#111111] border border-white/5 p-4 rounded-2xl flex items-center justify-between transition-all group">
-      <div className="flex items-center gap-3.5">
-        <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-none ${completed ? 'bg-green-500/10 text-green-500' : 'bg-red-500/10 text-red-500'}`}>
+    <div className="bg-[#121217] hover:bg-[#16161D] border border-white/[0.07] p-4 rounded-2xl flex items-center justify-between gap-3 transition-all shadow-sm">
+      <div className="flex items-center gap-3.5 min-w-0">
+        <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-none border ${
+          completed 
+            ? 'bg-emerald-500/15 border-emerald-500/30 text-emerald-400' 
+            : accent === 'amber'
+            ? 'bg-amber-500/15 border-amber-500/30 text-amber-400'
+            : 'bg-red-500/15 border-red-500/30 text-red-500'
+        }`}>
           {completed ? <CheckCircle size={20} /> : icon}
         </div>
-        <div className="flex flex-col items-start gap-0.5">
-          <span className="font-bold text-sm text-white">{title}</span>
-          {subtitle && <span className="text-[11px] text-white/50">{subtitle}</span>}
+        <div className="flex flex-col items-start gap-0.5 min-w-0">
+          <span className="font-extrabold text-sm text-white truncate max-w-full">{title}</span>
+          {subtitle && <span className="text-xs text-white/50 truncate max-w-full">{subtitle}</span>}
         </div>
       </div>
       
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2.5 shrink-0">
         {!completed && reward && (
-          <span className="text-xs font-black text-amber-400 bg-amber-400/10 px-2 py-1 rounded-md" dir="ltr">+{reward}</span>
+          <div className="flex items-center gap-1 text-xs font-black text-amber-400 bg-amber-500/10 border border-amber-500/20 px-2.5 py-1 rounded-xl tabular-nums" dir="ltr">
+            <Coins size={12} className="text-amber-400" />
+            <span>+{reward}</span>
+          </div>
         )}
         <button 
           onClick={onAction}
           disabled={disabled || completed || loading}
-          className={`px-4 py-2 rounded-xl text-xs font-bold transition-all whitespace-nowrap min-w-[70px] flex justify-center items-center ${
+          className={`px-4 min-h-[40px] rounded-xl text-xs font-extrabold transition-all whitespace-nowrap min-w-[76px] flex justify-center items-center ${
             completed 
-              ? 'bg-white/5 text-white/40 cursor-not-allowed'
+              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 cursor-default'
               : disabled && !timer
               ? 'bg-white/5 text-white/30 cursor-not-allowed'
-              : 'bg-white/10 hover:bg-white/15 text-white active:scale-95'
+              : timer
+              ? 'bg-white/5 text-white/60 border border-white/10 cursor-not-allowed'
+              : 'bg-gradient-to-r from-red-600 to-orange-500 hover:from-red-500 hover:to-orange-400 text-white shadow-md shadow-red-600/20 active:scale-95'
           }`}
         >
-          {loading ? (isArabic ? 'جاري...' : 'Wait...') : timer ? <span className="font-mono">{timer}</span> : completed ? (isArabic ? 'مكتمل' : 'Done') : actionText}
+          {loading ? (isArabic ? 'جاري...' : 'Wait...') : timer ? <span className="font-mono tabular-nums text-[11px]">{timer}</span> : completed ? (isArabic ? 'مكتمل' : 'Done') : actionText}
         </button>
       </div>
     </div>
   );
 
   return (
-    <div className="h-full w-full overflow-y-auto bg-[#050505] text-white pb-32" dir={isArabic ? 'rtl' : 'ltr'}>
-      <div className="p-4 sm:p-6 lg:p-8 max-w-2xl mx-auto space-y-6">
+    <div className="h-full w-full overflow-y-auto bg-[#070709] text-white pb-32 hide-scrollbar" dir={isArabic ? 'rtl' : 'ltr'}>
+      {/* Floating Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className={`fixed top-4 inset-x-4 max-w-md mx-auto z-[200] p-3.5 rounded-2xl border backdrop-blur-xl shadow-2xl flex items-center gap-2.5 text-xs font-extrabold ${
+              toast.type === 'success'
+                ? 'bg-emerald-950/90 border-emerald-500/40 text-emerald-300'
+                : 'bg-amber-950/90 border-amber-500/40 text-amber-300'
+            }`}
+          >
+            <Sparkles size={16} className="shrink-0" />
+            <span>{toast.text}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Sticky Header */}
+      <div className="sticky top-0 z-30 bg-[#070709]/85 backdrop-blur-xl border-b border-white/[0.06] px-4 sm:px-6 py-3.5">
+        <div className="max-w-2xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-red-600/15 border border-red-500/30 flex items-center justify-center text-red-500">
+              <Gift size={18} />
+            </div>
+            <div>
+              <h2 className="text-base sm:text-lg font-black text-white leading-tight">
+                {isArabic ? 'مركز المهام والمكافآت' : 'Rewards & Tasks Center'}
+              </h2>
+              <p className="text-[11px] text-white/45">
+                {isArabic ? 'اجمع النقاط واستبدلها بمشاهدة مجانية وباقات VIP' : 'Earn free coins & redeem for VIP passes'}
+              </p>
+            </div>
+          </div>
+          <TopPointsBadge showEarnButton={false} />
+        </div>
+      </div>
+
+      <div className="p-4 sm:p-6 max-w-2xl mx-auto space-y-6">
         
-        {/* Header Section */}
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-2xl font-black flex items-center gap-2">
-            <Gift className="text-red-500" />
-            {isArabic ? 'المهام والمكافآت' : 'Tasks & Rewards'}
-          </h2>
-          <div className="flex items-center gap-1.5 bg-white/5 px-3 py-1.5 rounded-full border border-white/10">
-            <Coins size={16} className="text-yellow-400" />
-            <span className="font-bold font-mono text-sm">{coins}</span>
-          </div>
-        </div>
-
-        {/* Daily Streak Highlight */}
-        <div className="bg-gradient-to-br from-amber-500/10 to-yellow-500/5 border border-amber-500/20 rounded-3xl p-5 relative overflow-hidden">
-          <div className="absolute top-0 right-0 p-4 opacity-10 blur-xl">
-            <Flame size={100} className="text-amber-500" />
-          </div>
+        {/* 7-Day Daily Streak Highlight Card */}
+        <div className="bg-gradient-to-br from-[#231B0E] via-[#16130E] to-[#101014] border border-amber-500/30 rounded-3xl p-5 relative overflow-hidden shadow-[0_12px_35px_rgba(245,158,11,0.1)]">
+          <div className="absolute -top-12 -left-12 w-40 h-40 bg-amber-500/15 rounded-full blur-3xl pointer-events-none" />
+          
           <div className="relative z-10 flex flex-col gap-4">
-             <div className="flex justify-between items-start">
-               <div className="flex flex-col gap-1">
-                 <h3 className="font-black text-lg text-amber-400 flex items-center gap-2">
-                   <Flame size={20} />
-                   {isArabic ? 'المكافأة اليومية' : 'Daily Streak'}
-                 </h3>
-                 <p className="text-xs text-white/60">
-                   {isArabic ? `لقد سجلت الدخول ${streakDays} أيام متتالية` : `You logged in for ${streakDays} consecutive days`}
-                 </p>
-               </div>
-             </div>
+            <div className="flex justify-between items-start gap-2">
+              <div>
+                <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-300 text-[10px] font-extrabold mb-1.5">
+                  <Flame size={12} className="fill-amber-400 text-amber-400" />
+                  <span>{isArabic ? `سلسلة ${streakDays} أيام متتالية` : `${streakDays} Days Streak`}</span>
+                </div>
+                <h3 className="font-black text-base sm:text-lg text-white">
+                  {isArabic ? 'مكافأة الحضور اليومي' : 'Daily Check-In Bonus'}
+                </h3>
+              </div>
+              <span className="text-xs font-bold text-amber-400/90 tabular-nums">
+                {isArabic ? 'تصل إلى +300 نقطة' : 'Up to +300 pts'}
+              </span>
+            </div>
+
+            {/* 7-Day Visual Grid */}
+            <div className="grid grid-cols-7 gap-1.5">
+              {streakRewards.map((reward, index) => {
+                const dayNum = index + 1;
+                const isClaimed = streakDays >= dayNum;
+                const isCurrent = streakDays + 1 === dayNum;
+
+                return (
+                  <div 
+                    key={index} 
+                    className={`flex flex-col items-center justify-center py-2.5 px-1 rounded-2xl border text-center transition-all ${
+                      isClaimed 
+                        ? 'bg-amber-500/20 border-amber-500/50 text-amber-300' 
+                        : isCurrent
+                        ? 'bg-gradient-to-b from-amber-500/30 to-amber-500/10 border-amber-400 text-white shadow-[0_0_15px_rgba(245,158,11,0.25)]'
+                        : 'bg-black/40 border-white/5 text-white/35'
+                    }`}
+                  >
+                    <span className="text-[9px] font-bold uppercase mb-1">
+                      {isArabic ? `يوم ${dayNum}` : `D${dayNum}`}
+                    </span>
+                    <span className="text-xs font-black tabular-nums" dir="ltr">+{reward}</span>
+                  </div>
+                );
+              })}
+            </div>
              
-             <button 
-                onClick={handleClaimDailyWithAd}
-                disabled={isClaimingDaily || !canClaimDaily}
-                className={`w-full font-black text-sm py-3.5 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 ${
-                  canClaimDaily 
-                    ? 'bg-gradient-to-r from-amber-500 to-yellow-500 hover:from-amber-400 hover:to-yellow-400 text-black active:scale-95'
-                    : 'bg-white/10 text-white/50 cursor-not-allowed border border-white/5'
-                }`}
-              >
-                {isClaimingDaily ? (
-                  <span>{isArabic ? 'جاري تحميل الإعلان...' : 'Loading Ad...'}</span>
-                ) : !canClaimDaily ? (
-                  <span className="flex items-center gap-2">
-                    <Clock size={16} /> 
-                    {isArabic ? 'متاح بعد:' : 'Available in:'} <span dir="ltr">{dailyTimeLeft}</span>
-                  </span>
-                ) : (
-                  <span>{isArabic ? 'استلام المكافأة (إعلان)' : 'Claim Reward (Ad)'}</span>
-                )}
-              </button>
+            <button 
+              onClick={handleClaimDailyWithAd}
+              disabled={isClaimingDaily || !canClaimDaily}
+              className={`w-full min-h-[48px] font-black text-xs sm:text-sm py-3 rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 ${
+                canClaimDaily 
+                  ? 'bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-500 hover:from-amber-400 hover:to-yellow-300 text-black active:scale-98 shadow-amber-500/20'
+                  : 'bg-white/[0.06] text-white/50 cursor-not-allowed border border-white/10'
+              }`}
+            >
+              {isClaimingDaily ? (
+                <span>{isArabic ? 'جاري تحميل الإعلان...' : 'Loading Ad...'}</span>
+              ) : !canClaimDaily ? (
+                <span className="flex items-center gap-2">
+                  <Clock size={15} /> 
+                  <span>{isArabic ? 'المكافأة القادمة بعد:' : 'Next reward in:'}</span>
+                  <span className="font-mono tabular-nums text-amber-400" dir="ltr">{dailyTimeLeft}</span>
+                </span>
+              ) : (
+                <>
+                  <Gift size={17} />
+                  <span>{isArabic ? 'استلام مكافأة اليوم (مشاهدة إعلان)' : 'Claim Daily Bonus (Watch Ad)'}</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
 
-        {/* Monetag Tasks */}
-        <div className="space-y-3">
-          <h3 className="text-sm text-white/50 font-bold uppercase tracking-wider px-1">
-            {isArabic ? 'إعلانات A' : 'Ads A'}
-          </h3>
+        {/* Quick Video Ad Tasks */}
+        <div className="space-y-2.5">
+          <div className="flex items-center justify-between px-1">
+            <h3 className="text-xs text-white/55 font-extrabold uppercase tracking-wider">
+              {isArabic ? 'مكافآت الإعلانات السريعة' : 'Quick Video Rewards'}
+            </h3>
+            <span className="text-[11px] text-white/40 font-mono tabular-nums">
+              {adsWatchedCount}/{DAILY_AD_LIMIT} {isArabic ? 'اليوم' : 'today'}
+            </span>
+          </div>
+
           <TaskItem 
             icon={<Tv size={20} />}
-            title={isArabic ? 'شاهد إعلان A' : 'Watch Ad A'}
-            subtitle={isArabic ? 'متاح كل 5 دقائق' : 'Available every 5 mins'}
+            title={isArabic ? 'مشاهدة إعلان مكافأة (A)' : 'Watch Reward Ad (A)'}
+            subtitle={isArabic ? 'متاح كل 5 دقائق لربح نقاط فورية' : 'Available every 5 minutes'}
             reward="30"
-            actionText={isArabic ? 'مطالبة' : 'Claim'}
+            actionText={isArabic ? 'مشاهدة' : 'Watch'}
             onAction={handleMonetagClaim}
             disabled={!!monetagTimeLeft}
             loading={isMonetagLoading}
             completed={false}
             timer={monetagTimeLeft}
           />
-        </div>
 
-        {/* Adsgram Tasks */}
-        <div className="space-y-3 pt-2">
-          <h3 className="text-sm text-white/50 font-bold uppercase tracking-wider px-1">
-            {isArabic ? 'إعلانات B' : 'Ads B'}
-          </h3>
           <TaskItem 
             icon={<Tv size={20} />}
-            title={isArabic ? 'مكافأة إعلان B' : 'Ad B Reward'}
-            subtitle={`${adsWatchedCount}/${DAILY_AD_LIMIT} ${isArabic ? 'يومياً' : 'Daily'}`}
+            title={isArabic ? 'مشاهدة إعلان مكافأة (B)' : 'Watch Reward Ad (B)'}
+            subtitle={`${adsWatchedCount}/${DAILY_AD_LIMIT} ${isArabic ? 'متاح يومياً' : 'Daily limit'}`}
             reward="30"
             actionText={isArabic ? 'مشاهدة' : 'Watch'}
             onAction={handleRewardAd}
@@ -536,18 +585,29 @@ export const Tasks = () => {
             loading={isRewardAdLoading}
             completed={adsWatchedCount >= DAILY_AD_LIMIT}
           />
-
-          
         </div>
 
-        <div className="space-y-3 pt-2">
-          <h3 className="text-sm text-white/50 font-bold uppercase tracking-wider px-1">
-            {isArabic ? 'مهام أخرى' : 'Other Tasks'}
+        {/* Social & App Tasks */}
+        <div className="space-y-2.5">
+          <h3 className="text-xs text-white/55 font-extrabold uppercase tracking-wider px-1">
+            {isArabic ? 'مهام التطبيق والمجتمع' : 'Community & App Tasks'}
           </h3>
+
           <TaskItem 
-            icon={<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>}
-            title={isArabic ? 'إضافة إلى الشاشة الرئيسية' : 'Add to Home Screen'}
-            subtitle={isArabic ? 'مكافأة لمرة واحدة' : 'One-time reward'}
+            icon={<Share2 size={20} />}
+            title={isArabic ? 'دعوة الأصدقاء للتطبيق' : 'Invite Friends'}
+            subtitle={isArabic ? 'اربح 250 نقطة عن كل صديق ينضم عبر رابطك' : 'Earn 250 coins for every friend invited'}
+            reward="250"
+            actionText={isArabic ? 'دعوة' : 'Invite'}
+            onAction={() => setShowReferralModal(true)}
+            completed={false}
+            accent="amber"
+          />
+
+          <TaskItem 
+            icon={<Smartphone size={20} />}
+            title={isArabic ? 'إضافة التطبيق للشاشة الرئيسية' : 'Add to Home Screen'}
+            subtitle={isArabic ? 'مكافأة فورية للوصول السريع' : 'One-time shortcut reward'}
             reward="100"
             actionText={isArabic ? 'إضافة' : 'Add'}
             onAction={handleHomeScreenAdd}
@@ -555,9 +615,10 @@ export const Tasks = () => {
             loading={isHomeScreenLoading}
             completed={isHomeScreenAdded}
           />
+
           <TaskItem 
             icon={<Globe size={20} />}
-            title={isArabic ? 'زيارة الموقع' : 'Visit Website'}
+            title={isArabic ? 'زيارة موقع الراعي' : 'Visit Sponsor Website'}
             subtitle={isArabic ? 'متاح كل 5 دقائق' : 'Available every 5 mins'}
             reward="20"
             actionText={isArabic ? 'زيارة' : 'Visit'}
@@ -568,22 +629,12 @@ export const Tasks = () => {
             timer={siteVisitTimeLeft}
           />
 
-
-          <TaskItem 
-            icon={<Share2 size={20} />}
-            title={isArabic ? 'دعوة أصدقاء' : 'Invite Friends'}
-            subtitle={isArabic ? 'احصل على مكافأة لكل صديق' : 'Get rewarded per friend'}
-            reward="250"
-            actionText={isArabic ? 'دعوة' : 'Invite'}
-            onAction={() => setShowReferralModal(true)}
-            completed={false}
-          />
-
           <TaskItem 
             icon={
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
             }
-            title={isArabic ? 'انضم لقناة التلجرام' : 'Join Telegram Channel'}
+            title={isArabic ? 'الانضمام لقناة تيليجرام الرسمية' : 'Join Official Telegram Channel'}
+            subtitle={isArabic ? 'تابع أحدث المسلسلات الحصرية والعروض' : 'Stay updated with new drama releases'}
             reward="100"
             actionText={isArabic ? 'انضمام' : 'Join'}
             onAction={handleJoinTelegram}
@@ -591,11 +642,9 @@ export const Tasks = () => {
           />
 
           <TaskItem 
-            icon={
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
-            }
-            title={isArabic ? 'تفعيل إشعارات الأفلام الجديدة' : 'Enable New Movie Notifications'}
-            subtitle={isArabic ? 'احصل على إشعارات بالأفلام الجديدة على تيليجرام' : 'Get notified of new movies on Telegram'}
+            icon={<Bell size={20} />}
+            title={isArabic ? 'تفعيل إشعارات المسلسلات الجديدة' : 'Enable New Drama Notifications'}
+            subtitle={isArabic ? 'احصل على تنبيه فور نزول حلقات جديدة' : 'Get notified of new episodes on Telegram'}
             reward="100"
             actionText={isArabic ? 'تفعيل' : 'Enable'}
             onAction={handleTelegramWriteAccess}
@@ -612,3 +661,4 @@ export const Tasks = () => {
     </div>
   );
 };
+

@@ -26,7 +26,7 @@ export const HomeScreenTaskModal: React.FC = () => {
         return; // Not supported, don't show
       }
 
-      // Give the app a moment to load before popping up
+      // Give the official Telegram write-access popup time to appear first
       timeoutId = setTimeout(async () => {
         const userId = getCurrentUserId();
         if (!userId) return;
@@ -34,7 +34,7 @@ export const HomeScreenTaskModal: React.FC = () => {
         if (!isCompleted) {
           setIsVisible(true);
         }
-      }, 2500);
+      }, 6500);
     };
     
     checkStatus();

@@ -27,12 +27,16 @@ export async function syncCoinsToFirebase(userId: string, coins: number, name?: 
     const userRef = doc(db, 'users', userId);
     const snap = await getDoc(userRef);
     const updateData: any = { coins };
+    if (name) {
+      updateData.name = name;
+    }
     if (completedEpisodes) {
       updateData.completedEpisodes = completedEpisodes;
       updateData.completedEpisodesCount = completedEpisodes.length;
     }
-    if (writeAccessGranted !== undefined) {
-      updateData.writeAccessGranted = writeAccessGranted;
+    if (writeAccessGranted === true) {
+      updateData.writeAccessGranted = true;
+      updateData.telegramWriteAccessStatus = 'allowed';
     }
 
     if (!snap.exists()) {
@@ -46,7 +50,8 @@ export async function syncCoinsToFirebase(userId: string, coins: number, name?: 
         createdAt: Date.now(),
         completedEpisodes: completedEpisodes || [],
         completedEpisodesCount: completedEpisodes ? completedEpisodes.length : 0,
-        writeAccessGranted: writeAccessGranted || false
+        writeAccessGranted: writeAccessGranted || false,
+        telegramWriteAccessStatus: writeAccessGranted ? 'allowed' : 'unknown'
       });
     } else {
       await updateDoc(userRef, updateData);
