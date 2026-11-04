@@ -1,12 +1,12 @@
 {
   "compilerOptions": {
-    "target": "es2021",
-    "module": "es2022",
-    "lib": ["es2021"],
-    "types": ["@cloudflare/workers-types"],
+    "target": "ES2022",
+    "module": "ESNext",
+    "lib": ["ES2022", "DOM"],
     "moduleResolution": "bundler",
     "strict": true,
     "skipLibCheck": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "noEmit": true
   }
 }
