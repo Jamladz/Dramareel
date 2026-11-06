@@ -1,5 +1,0 @@
-{
-  "version": 1,
-  "include": ["/*"],
-  "exclude": ["/assets/*", "/icon.svg", "/tonconnect-manifest.json", "/_headers"]
-}
